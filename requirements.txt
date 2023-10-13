@@ -1,0 +1,10 @@
+fastapi
+starlette
+uvicorn
+scikit-learn
+xgboost==1.5.0
+pandas
+numpy_financial
+geopy
+pyarrow
+fastparquet
