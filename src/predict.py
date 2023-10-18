@@ -19,12 +19,13 @@ encoders = {}
 def transform_with_logging(encoder, value, encoder_name):
     if value is None:
         logger.error(f"{encoder_name} received a None value.")
-        raise ValueError(f"{encoder_name} received a None value.")
+        return encoder.classes_[0]  # Return the first class instead of raising an error
+
     try:
         return encoder.transform([value])[0]
     except ValueError as e:
         logger.error(f"Error transforming with {encoder_name}. Value: {value}. Error: {str(e)}")
-        raise
+        return encoder.classes_[0]
 
 for key, filename in ENCODERS.items():
     with open(ARTEFACTS_PATH + filename, 'rb') as f:
@@ -45,17 +46,25 @@ def calculate_last_floor(flat_floor, building_floor):
 def calculate_building_age(building_year):
     return date.today().year - building_year
 
-
 def calculate_square_per_room(total_square, live_rooms):
+    if live_rooms == 0:  # Check for division by zero
+        logger.error("Number of live rooms is zero. Cannot calculate square per room.")
+        return 0
     return total_square / live_rooms
 
 def get_flat_price(json_to_send):
-    print(json_to_send)
+    logger.info(f"ENTRY: {json_to_send}")
     try:
-        is_first_floor = calculate_first_floor(json_to_send.get("flat_floor"))
-        is_last_floor = calculate_last_floor(json_to_send.get("flat_floor"), json_to_send.get("building_floor"))
-        square_per_room = calculate_square_per_room(json_to_send.get("total_square"), json_to_send.get("live_rooms"))
-        building_age = calculate_building_age(json_to_send.get("building_year"))
+        flat_floor = json_to_send.get("flat_floor", 0) or 0
+        building_floor = json_to_send.get("building_floor", 0) or 0
+        total_square = json_to_send.get("total_square", 0) or 0
+        live_rooms = json_to_send.get("live_rooms", 0) or 0
+        building_year = json_to_send.get("building_year", date.today().year) or date.today().year
+        
+        is_first_floor = calculate_first_floor(flat_floor)
+        is_last_floor = calculate_last_floor(flat_floor, building_floor)
+        square_per_room = calculate_square_per_room(total_square, live_rooms)
+        building_age = calculate_building_age(building_year)
 
         district = transform_with_logging(encoders["district"], json_to_send.get('district'), "district")
         owner = transform_with_logging(encoders["owner"], "Хозяин недвижимости", "owner")
@@ -64,7 +73,6 @@ def get_flat_price(json_to_send):
         flat_renovation = transform_with_logging(encoders["flat_renovation"], json_to_send.get('flat_renovation'), "flat_renovation")
         flat_toilet = transform_with_logging(encoders["toilet"], json_to_send.get('flat_toilet'), "toilet")
         live_furniture = transform_with_logging(encoders["furniture"], json_to_send.get('live_furniture'), "furniture")
-        
 
         to_model = np.array([
             district, json_to_send.get('live_rooms'), owner, json_to_send.get('total_square'), json_to_send.get('kitchen_square'),
@@ -76,13 +84,14 @@ def get_flat_price(json_to_send):
 
         prediction = rf_regressor.predict(to_model.reshape(1, -1))
         factor = 1.0
-        if json_to_send.get("city") == "Алматы":
-            factor = np.exp(0.20) if len(json_to_send.get("residential_complex")) > 0 else np.exp(0.09)
-        elif json_to_send.get("city", "city") in ["Шымкент", "Астана", "Павлодар"]:
-            factor = 0.8 * (np.exp(0.10) if len(json_to_send.get("residential_complex")) > 0 else 1)
+        city = json_to_send.get("city", "")  # Corrected fallback value
+        if city == "Алматы":
+            factor = np.exp(0.35) if len(json_to_send.get("residential_complex", "")) > 0 else np.exp(0.29)
+        elif city in ["Шымкент", "Астана", "Павлодар"]:
+            factor = 0.8 * (np.exp(0.10) if len(json_to_send.get("residential_complex", "")) > 0 else 1)
             if json_to_send.get("district") == "Байконур":
                 factor *= 0.8
-        elif json_to_send.get("city") == "":
+        elif city == "":
             factor = 0.07
         else:
             factor = 0.35

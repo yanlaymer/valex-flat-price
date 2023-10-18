@@ -24,53 +24,42 @@ for key, filename in ENCODERS.items():
 def check_password(stored_password, user_password):
     return stored_password == hashlib.sha256(user_password.encode()).hexdigest()
 
-# BASE_URL = "http://127.0.0.1:8002"  # Replace with the URL of your FastAPI server
-
-# def get_flat_price(data):
-#     response = requests.post(f"{BASE_URL}/get_flat_price/", json=data)
-#     if response.status_code == 200:
-#         return response.json()
-#     else:
-#         st.error("Failed to fetch the valuation.")
-#         return None
-
-st.title("Flat Price Estimation")
+st.title("VALEX ОЦЕНКА КВАРТИРЫ")
 
 # Input fields for the FlatModel
 def main():
-    city = st.text_input("City")
+    city = st.text_input("Город")
     
-    # Replace text inputs with dropdowns for the encoded categories
     district_choices = encoders["district"].classes_.tolist()
-    district = st.selectbox("District", district_choices)
+    district = st.selectbox("Район", district_choices)
     
-    street = st.text_input("Street")
-    residential_complex = st.text_input("Residential Complex (Optional)", value="")
-    home_number = st.text_input("Home Number")
+    street = st.text_input("Улица")
+    residential_complex = st.text_input("Жилой комплекс (необязательно)", value="")
+    home_number = st.text_input("Номер дома")
     
     building_type_choices = encoders["building"].classes_.tolist()
-    building_type = st.selectbox("Building Type", building_type_choices)
+    building_type = st.selectbox("Тип здания", building_type_choices)
     
-    total_square = st.number_input("Total Square (in sq.m)", min_value=0.0)
-    kitchen_square = st.number_input("Kitchen Square (in sq.m)", min_value=0.0)
-    flat_floor = st.number_input("Flat Floor", min_value=1)
-    building_floor = st.number_input("Building Floor", min_value=1)
-    live_rooms = st.number_input("Number of Living Rooms", min_value=1)
-    building_year = st.number_input("Building Year", min_value=1900, max_value=2023)
+    total_square = st.number_input("Общая площадь (в кв.м)", min_value=0.0)
+    kitchen_square = st.number_input("Площадь кухни (в кв.м)", min_value=0.0)
+    flat_floor = st.number_input("Этаж квартиры", min_value=1)
+    building_floor = st.number_input("Этаж здания", min_value=1)
+    live_rooms = st.number_input("Количество жилых комнат", min_value=1)
+    building_year = st.number_input("Год постройки", min_value=1900, max_value=2023)
     
     flat_priv_dorm_choices = encoders["flat_priv"].classes_.tolist()
-    flat_priv_dorm = st.selectbox("Flat Priv Dorm", flat_priv_dorm_choices)
+    flat_priv_dorm = st.selectbox("Частное общежитие", flat_priv_dorm_choices)
     
     flat_renovation_choices = encoders["flat_renovation"].classes_.tolist()
-    flat_renovation = st.selectbox("Flat Renovation", flat_renovation_choices)
+    flat_renovation = st.selectbox("Ремонт в квартире", flat_renovation_choices)
     
     flat_toilet_choices = encoders["toilet"].classes_.tolist()
-    flat_toilet = st.selectbox("Flat Toilet", flat_toilet_choices)
+    flat_toilet = st.selectbox("Туалет", flat_toilet_choices)
     
     live_furniture_choices = encoders["furniture"].classes_.tolist()
-    live_furniture = st.selectbox("Live Furniture", live_furniture_choices)
+    live_furniture = st.selectbox("Мебель", live_furniture_choices)
 
-    if st.button("Estimate Flat Price"):
+    if st.button("Оценить стоимость квартиры"):
         data = {
             "city": city,
             "district": district,
@@ -91,31 +80,26 @@ def main():
         }
         result = get_flat_price(data)
         if result.get("status_code") == 200:
-            st.success(f"{result.get('status_code')} : Estimated Flat Price: {round(result.get('price'), -4)}, message: {result.get('message')}")
+            st.success(f"{result.get('status_code')} : Оценочная стоимость: {round(result.get('price'), -4)}, message: {result.get('message')}")
         else:
             st.error(f"{result.get('status_code')} : {result.get('message')}")
             
-# Check for the session state
+
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
-# If not logged in, show the login form
 if not st.session_state.logged_in:
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
 
     if st.button("Login"):
-        # Password should be hashed and stored securely in the real world
-        # For the sake of this example, we use a hardcoded username and password
-        # Username: admin
-        # Password: secret
         stored_password = hashlib.sha256("KNAGT2001_d".encode()).hexdigest()
         if username == "test" and check_password(stored_password, password):
             st.session_state.logged_in = True
         else:
-            st.warning("Invalid credentials. Try again.")
+            st.warning("Некорректные данные. Попробовать еще раз.")
 
 if st.session_state.logged_in:
-    main()  # Call your main app function
+    main()
 else:
-    st.info("Please login to access this app.")
+    st.info("Пожалуйста, введите данные для авторизаций.")
