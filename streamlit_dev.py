@@ -89,8 +89,8 @@ if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    username = st.text_input("Логин")
+    password = st.text_input("Пароль", type="password")
 
     if st.button("Login"):
         stored_password = hashlib.sha256("KNAGT2001_d".encode()).hexdigest()
