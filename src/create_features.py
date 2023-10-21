@@ -26,12 +26,21 @@ def get_analog_prices_for_entry(data, entry):
     if analogs is None or len(analogs) < 5:
         tree = KDTree(np.radians(filtered_data[['latitude', 'longitude']].values))
         distance_limit_rad = 1 / 6371.0088
-        _, indices = tree.query([np.radians(entry['latitude']), np.radians(entry['longitude'])], distance_upper_bound=distance_limit_rad, k=10)
+        _, indices = tree.query([np.radians(entry['latitude']), np.radians(entry['longitude'])], distance_upper_bound=distance_limit_rad, k=3)
         
         # Ensure indices is always a list
         indices = np.atleast_1d(indices)
         
         analogs = filtered_data.iloc[indices]
+        
+        if analogs is None or len(analogs) < 3:
+            
+            tree = KDTree(np.radians(filtered_data[['latitude', 'longitude']].values))
+            distance_limit_rad = 3 / 6371.0088
+            _, indices = tree.query([np.radians(entry['latitude']), np.radians(entry['longitude'])], distance_upper_bound=distance_limit_rad, k=5)
+            
+            analogs = filtered_data.iloc[indices]
+            
         
     
     # Return the statistics for the found analogs
