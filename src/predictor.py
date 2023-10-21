@@ -20,20 +20,28 @@ class Predictor:
         self.pred_price = prediction
         logger.info(f"PRICE (WITHOUT CORRECTION): {prediction * self.entry['total_square']}")
         
-        if self.model_entry['analog_prices_min'] > prediction:
+        analog_min_price = self.model_entry['analog_prices_min'] * self.entry['total_square']
+        analog_median_price = self.model_entry['analog_prices_median'] * self.entry['total_square']
+        analog_max_price = self.model_entry['analog_prices_max'] * self.entry['total_square']
+
+        # Determine the best price based on the conditions
+        corrected_price = min(
+            prediction,
+            analog_min_price,
+            analog_median_price if analog_median_price * 1.5 > prediction else 0,
+            analog_max_price if analog_max_price * 1.5 > prediction else 0
+        )
+
+        # Log the correction applied
+        if corrected_price == analog_min_price:
             logger.info("CORRECTION BY MIN")
-            prediction = self.model_entry['analog_prices_min'] * self.entry['total_square']
-        if self.model_entry['analog_prices_median'] * 1.5 > prediction:
+        elif corrected_price == analog_median_price:
             logger.info("CORRECTION BY MEDIAN")
-            prediction = self.model_entry['analog_prices_median'] * self.entry['total_square']
-        if self.model_entry['analog_prices_max'] * 1.5 > prediction:
+        elif corrected_price == analog_max_price:
             logger.info("CORRECTION BY MAX")
-            prediction = self.model_entry['analog_prices_max'] * self.entry['total_square']
-            
-        self.final_price = prediction
-        
-        if self.final_price == self.pred_price:
-            logger.info("NO CORRECTION")
+
+        self.final_price = corrected_price
+
         
         logger.info(f"PRICE(AFTER CORRECTION): {prediction}")
         analog_links = [self.model_entry['analog_1'], self.model_entry['analog_2'], self.model_entry['analog_3']]
