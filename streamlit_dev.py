@@ -133,6 +133,14 @@ def main():
         for link in links:
             st.markdown(f'<a href="{link}" target="_blank">Ссылка</a>', unsafe_allow_html=True)
             
+        st.write("Распределение цен")
+        analog_prices_min = predictor.model_entry['analog_prices_min'] * predictor.entry['total_square']
+        analog_prices_median = predictor.model_entry['analog_prices_median'] * predictor.entry['total_square']
+        analog_prices_max = predictor.model_entry['analog_prices_max'] * predictor.entry['total_square']
+        st.write(f"Минимальная цена: {analog_prices_min}")
+        st.write(f"Медианная цена: {analog_prices_median}")
+        st.write(f"Максимальная цена: {analog_prices_max}")
+            
 
 def auth():
     username = st.sidebar.text_input("Логин")
