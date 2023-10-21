@@ -128,10 +128,17 @@ def main():
         map_df = pd.DataFrame({'lat': [lat], 'lon': [lon]})
         st.map(map_df, zoom=15)
 
-        # make preview links as buttons
-        st.write("Ссылки на аналоги:")
-        for link in links:
-            st.markdown(f'<a href="{link}" target="_blank">Ссылка</a>', unsafe_allow_html=True)
+        links_html = "<div style='white-space: nowrap;'>"
+
+        # Add each link to the container
+        for index, link in enumerate(links):
+            links_html += f'<a href="{link}" target="_blank" style="display: inline-block; margin-right: 10px;">Аналог{index + 1}</a>'
+
+        # Close the container
+        links_html += "</div>"
+
+        # Display the container in Streamlit
+        st.markdown(links_html, unsafe_allow_html=True)
             
         st.write("Распределение цен")
         analog_prices_min = predictor.model_entry['analog_prices_min'] * predictor.entry['total_square']
