@@ -25,7 +25,7 @@ class Predictor:
         analog_max_price = self.model_entry['analog_prices_max'] * self.entry['total_square']
 
         # Determine the best price based on the conditions
-        corrected_price = min(
+        corrected_price = max(
             prediction * self.entry['total_square'],
             analog_min_price if analog_min_price * 1.5 > prediction else 0,
             analog_median_price if analog_median_price * 1.5 > prediction else 0,
