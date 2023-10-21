@@ -27,9 +27,9 @@ class Predictor:
         # Determine the best price based on the conditions
         corrected_price = min(
             prediction * self.entry['total_square'],
-            analog_min_price,
+            analog_min_price if analog_min_price * 1.5 > prediction else 0,
             analog_median_price if analog_median_price * 1.5 > prediction else 0,
-            analog_max_price if analog_max_price * 1.5 > prediction else 0
+            analog_max_price if analog_max_price * 1.5 < prediction else 0
         )
 
         # Log the correction applied
