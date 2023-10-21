@@ -43,7 +43,7 @@ class Predictor:
         self.final_price = corrected_price
 
         
-        logger.info(f"PRICE(AFTER CORRECTION): {prediction}")
+        logger.info(f"PRICE(AFTER CORRECTION): {corrected_price}")
         analog_links = [self.model_entry['analog_1'], self.model_entry['analog_2'], self.model_entry['analog_3']]
         
         return self.final_price, analog_links
