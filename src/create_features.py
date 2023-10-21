@@ -25,8 +25,8 @@ def get_analog_prices_for_entry(data, entry):
     # Step 3: If no sufficient analogs found using housing_complex_name, perform spatial search
     if analogs is None or len(analogs) < 5:
         tree = KDTree(np.radians(filtered_data[['latitude', 'longitude']].values))
-        distance_limit_rad = 10 / 6371.0088
-        _, indices = tree.query([np.radians(entry['latitude']), np.radians(entry['longitude'])], distance_upper_bound=distance_limit_rad, k=5)
+        distance_limit_rad = 3 / 6371.0088
+        _, indices = tree.query([np.radians(entry['latitude']), np.radians(entry['longitude'])], distance_upper_bound=distance_limit_rad, k=10)
         
         # Ensure indices is always a list
         indices = np.atleast_1d(indices)
@@ -113,9 +113,9 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
         house_number = None
     
         
-    housing_comlex_name = entry['residential_complex'].upper()
+    housing_comlex_name = entry['residential_complex'].upper() if entry['residential_complex'] is not None else "НЕТ"
     total_square_meters = entry['total_square']
-    wall_type = entry['building_type'].upper() if entry['building_type'] is not "НЕИЗВЕСТНЫЙ" else "ИНОЕ"
+    wall_type = entry['building_type'].upper() if entry['building_type'] != "НЕИЗВЕСТНЫЙ" else "ИНОЕ"
     floor = entry['flat_floor']
     floors_number = entry['building_floor']
     rooms_number = entry['live_rooms']
