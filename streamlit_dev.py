@@ -144,7 +144,7 @@ def main():
         analog_prices_min = predictor.model_entry['analog_prices_min'] * predictor.entry['total_square']
         analog_prices_median = predictor.model_entry['analog_prices_median'] * predictor.entry['total_square']
         analog_prices_max = predictor.model_entry['analog_prices_max'] * predictor.entry['total_square']
-        st.write(f"Минимальная цена: {analog_prices_min}")
+        st.write(f"Минимальная цена (без ремонта): {analog_prices_min}")
         st.write(f"Медианная цена: {analog_prices_median}")
         st.write(f"Максимальная цена: {analog_prices_max}")
             
