@@ -11,7 +11,8 @@ analogs = pd.read_csv("data/analogs.csv", compression='gzip')
 def get_analog_prices_for_entry(data, entry):
     # Step 1: Filter based on rooms_number and construction_year
     mask = (data['rooms_number'] == entry['rooms_number']) & \
-           (np.abs(data['construction_year'] - entry['construction_year']) <= 5)
+           (np.abs(data['construction_year'] - entry['construction_year']) <= 7)
+           
     filtered_data = data[mask]
     
     # Step 2: Check for the same housing_complex_name
@@ -54,7 +55,7 @@ def get_location(city, district, street, house_number, housing_comlex_name):
     district = district.upper()
     street = street.upper()
     house_number = house_number.upper()
-    housing_comlex_name = housing_comlex_name.upper()
+    housing_comlex_name = housing_comlex_name.upper() if len(housing_comlex_name) > 0 or housing_comlex_name else "НЕТ"
     
     if "МКР" in street:
         street = street.replace("МКР", "МИКРОРАЙОН")
