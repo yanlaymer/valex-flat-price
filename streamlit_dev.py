@@ -34,7 +34,7 @@ def main():
     st.markdown(
         """
         <div style="color: orange; font-size: small; margin-bottom: 20px">
-        ⚠️ Поиск по адресу может быть некорректным в <span style="color: green">5%</span>. Рекомендуется использовать широту и долготу.
+        ⚠️ Поиск по адресу может быть некорректным в <span style="color: green">5%</span> случаев. Рекомендуется использовать широту и долготу.
         </div>
         """,
         unsafe_allow_html=True,
