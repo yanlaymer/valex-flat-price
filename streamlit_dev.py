@@ -44,7 +44,7 @@ def main():
     if input_type == "Введите адрес":
         city = st.text_input("Город")
         district = st.text_input("Район")
-        street = st.text_input("Улица")
+        street = st.text_input("Улица или микрорайон")
         home_number = st.text_input("Номер дома")
         latitude = None
         longitude = None
