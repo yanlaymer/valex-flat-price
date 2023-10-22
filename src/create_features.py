@@ -61,6 +61,9 @@ def get_location(city, district, street, house_number, housing_comlex_name):
 
     if "МКР" in district:
         district = district.replace("МКР", "МИКРОРАЙОН")
+        
+    if 'Р-Н' in district:
+        district = district.replace('Р-Н', 'РАЙОН')
     
     components = {
         'city': city,
