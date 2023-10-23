@@ -120,7 +120,7 @@ def main():
 
         status_placeholder.text("Получение оценки... ⏳")
         sleep(1)  # Simulating some processing time
-        st.success(f"Оценка квартиры: {round(price, -3)} Т")
+        st.success(f"Оценка квартиры: {round(price, -4):,.0f}".replace(',', ' ') + " Т")
         status_placeholder.text("Готово ✅")
 
         # plot map
@@ -144,9 +144,9 @@ def main():
         analog_prices_min = predictor.model_entry['analog_prices_min'] * predictor.entry['total_square']
         analog_prices_median = predictor.model_entry['analog_prices_median'] * predictor.entry['total_square']
         analog_prices_max = predictor.model_entry['analog_prices_max'] * predictor.entry['total_square']
-        st.write(f"Минимальная цена (без ремонта): {analog_prices_min}")
-        st.write(f"Медианная цена: {analog_prices_median}")
-        st.write(f"Максимальная цена: {analog_prices_max}")
+        st.write(f"Минимальная цена (без ремонта): {round(analog_prices_min, -4):,.0f}".replace(',', ' ') + " Т")
+        st.write(f"Медианная цена: {round(analog_prices_median, -4):,.0f}".replace(',', ' ') + " Т")
+        st.write(f"Максимальная цена: {round(analog_prices_max, -4):,.0f}".replace(',', ' ') + " Т")
             
 
 def auth():

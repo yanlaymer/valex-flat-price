@@ -33,9 +33,9 @@ class Predictor:
             analog_max_price if analog_max_price * 1.5 < prediction else 0
         )
         
-        logger.info(f"MIN PRICE: {analog_min_price}")
-        logger.info(f"MEDIAN PRICE: {analog_median_price}")
-        logger.info(f"MAX PRICE: {analog_max_price}")
+        logger.info(f"MIN PRICE: {analog_min_price:,.0f}")
+        logger.info(f"MEDIAN PRICE: {analog_median_price:,.0f}")
+        logger.info(f"MAX PRICE: {analog_max_price:,.0f}")
         
         if corrected_price == 0:
             corrected_price = analog_median_price * self.entry['total_square']
@@ -52,7 +52,7 @@ class Predictor:
         self.final_price = corrected_price
 
         
-        logger.info(f"PRICE(AFTER CORRECTION): {corrected_price}")
+        logger.info(f"PRICE(AFTER CORRECTION): {corrected_price:,.0f}")
         logger.info(f"PRICE PER SQUARE METERS (AFTER CORRECTION): {corrected_price / self.entry['total_square']}")
         analog_links = [self.model_entry['analog_1'], self.model_entry['analog_2'], self.model_entry['analog_3']]
         
