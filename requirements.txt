@@ -6,3 +6,4 @@ pyarrow
 fastparquet
 loguru
 streamlit
+fuzzywuzzy
