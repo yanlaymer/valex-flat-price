@@ -66,7 +66,7 @@ def main():
     st.subheader("Детали квартиры 🏠")
     residential_complex = st.text_input("Жилой комплекс (если есть)", value="")
     total_square = st.number_input("Общая площадь (в кв.м)", min_value=0.0)
-    kitchen_square = st.number_input("Площадь кухни (в кв.м)", min_value=0.0)
+    # kitchen_square = st.number_input("Площадь кухни (в кв.м)", min_value=0.0)
     flat_floor = st.number_input("Этаж квартиры", min_value=1)
     building_floor = st.number_input("Этаж здания", min_value=1)
     live_rooms = st.number_input("Количество жилых комнат", min_value=1)
@@ -97,7 +97,7 @@ def main():
             "home_number": home_number,
             "building_type": building_type,
             "total_square": total_square,
-            "kitchen_square": kitchen_square,
+            # "kitchen_square": kitchen_square,
             "flat_floor": flat_floor,
             "building_floor": building_floor,
             "live_rooms": live_rooms,
