@@ -159,7 +159,7 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
     housing_comlex_name = (
         entry["residential_complex"].upper()
         if entry["residential_complex"] is not None
-        else "НЕТ"
+        else ""
     )
     total_square_meters = entry["total_square"]
     wall_type = (
@@ -195,6 +195,8 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
     analog_prices_median = None
     analog_prices_max = None
     analog_price_min = None
+    
+    housing_comlex_name = "НЕТ" if housing_comlex_name == "" else housing_comlex_name
 
     entry = pd.Series(
         [
