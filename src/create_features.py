@@ -32,7 +32,6 @@ def get_analog_prices_for_entry(data, entry):
         )
         analogs = filtered_data[mask]
 
-    # Step 3: If no sufficient analogs found using housing_complex_name, perform spatial search
     if analogs is None or len(analogs) < 5:
         tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
         distance_limit_rad = 1 / 6371.0088
@@ -42,10 +41,11 @@ def get_analog_prices_for_entry(data, entry):
             k=3,
         )
 
-        # Ensure indices is always a list
+        # Ensure indices is always a list and filter out invalid indices
         indices = np.atleast_1d(indices)
+        valid_indices = indices[indices != len(filtered_data)]  # Filter out invalid indices
 
-        analogs = filtered_data.iloc[indices]
+        analogs = filtered_data.iloc[valid_indices]
 
         if analogs is None or len(analogs) < 3:
             tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
@@ -56,7 +56,9 @@ def get_analog_prices_for_entry(data, entry):
                 k=5,
             )
 
-            analogs = filtered_data.iloc[indices]
+            # Filter out invalid indices again
+            valid_indices = indices[indices != len(filtered_data)]
+            analogs = filtered_data.iloc[valid_indices]
 
     # Return the statistics for the found analogs
     return (
