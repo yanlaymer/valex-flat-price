@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from loguru import logger
-from geopy.geocoders import Nominatim
+from geopy.geocoders import Nominatim, ArcGIS, GoogleV3
 from scipy.spatial import KDTree
 from itertools import combinations
 from src.constants import MODEL_COLUMNS
@@ -48,7 +48,7 @@ def get_analog_prices_for_entry(data, entry):
     return analogs['price_per_square_meter'].median(), analogs['price_per_square_meter'].max(), analogs['price_per_square_meter'].min(), len(analogs), analogs['link'].tolist()[0], analogs['link'].tolist()[1], analogs['link'].tolist()[2]
 
 def get_location(city, district, street, house_number, housing_comlex_name):
-    geolocator = Nominatim(user_agent="my_app")
+    geolocator = Nominatim(user_agent="another_app", timeout=10)
     
     # make all letters uppercase
     city = city.upper()
@@ -86,9 +86,16 @@ def get_location(city, district, street, house_number, housing_comlex_name):
 
     # Loop through the generated combinations
     for address in all_combinations:
-        location = geolocator.geocode(address)
-        if location:
-            return location
+        try:
+            location = geolocator.geocode(address)
+            if location:
+                return location
+        except:
+            # If Nominatim fails, switch to ArcGIS
+            geolocator = ArcGIS(user_agent="fallback_app")
+            location = geolocator.geocode(address)
+            if location:
+                return location
 
     return None
 
