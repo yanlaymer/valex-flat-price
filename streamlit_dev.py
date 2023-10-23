@@ -120,7 +120,7 @@ def main():
 
         status_placeholder.text("Получение оценки... ⏳")
         sleep(1)  # Simulating some processing time
-        st.success(f"Оценка квартиры: {price} Т")
+        st.success(f"Оценка квартиры: {round(price, -3)} Т")
         status_placeholder.text("Готово ✅")
 
         # plot map
