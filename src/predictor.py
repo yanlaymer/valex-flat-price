@@ -53,7 +53,7 @@ class Predictor:
 
         
         logger.info(f"PRICE(AFTER CORRECTION): {corrected_price}")
-        logger.info(f"PRICE PER SQUARE METERS (AFTER CORRECTION): {corrected_price / self.entry['total_square']}"
+        logger.info(f"PRICE PER SQUARE METERS (AFTER CORRECTION): {corrected_price / self.entry['total_square']}")
         analog_links = [self.model_entry['analog_1'], self.model_entry['analog_2'], self.model_entry['analog_3']]
         
         return self.final_price, analog_links
