@@ -31,6 +31,9 @@ class Predictor:
             analog_median_price if analog_median_price * 1.5 > prediction else 0,
             analog_max_price if analog_max_price * 1.5 < prediction else 0
         )
+        
+        if corrected_price == 0:
+            corrected_price = analog_median_price * self.entry['total_square']
 
         # Log the correction applied
         if corrected_price == analog_min_price:
