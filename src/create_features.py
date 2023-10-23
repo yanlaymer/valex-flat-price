@@ -48,7 +48,8 @@ def get_analog_prices_for_entry(data, entry):
     return analogs['price_per_square_meter'].median(), analogs['price_per_square_meter'].max(), analogs['price_per_square_meter'].min(), len(analogs), analogs['link'].tolist()[0], analogs['link'].tolist()[1], analogs['link'].tolist()[2]
 
 def get_location(city, district, street, house_number, housing_comlex_name):
-    geolocator = Nominatim(user_agent="another_app", timeout=10)
+    geolocator = Nominatim(user_agent="another_app")
+    geolocator_v2 = ArcGIS(user_agent="fallback_app")
     
     # make all letters uppercase
     city = city.upper()
@@ -92,8 +93,7 @@ def get_location(city, district, street, house_number, housing_comlex_name):
                 return location
         except:
             # If Nominatim fails, switch to ArcGIS
-            geolocator = ArcGIS(user_agent="fallback_app")
-            location = geolocator.geocode(address)
+            location = geolocator_v2.geocode(address)
             if location:
                 return location
 
