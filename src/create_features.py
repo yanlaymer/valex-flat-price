@@ -5,6 +5,7 @@ from geopy.geocoders import Nominatim, ArcGIS, GoogleV3
 from scipy.spatial import KDTree
 from itertools import combinations
 from src.constants import MODEL_COLUMNS
+from fuzzywuzzy import fuzz
 
 analogs = pd.read_csv("data/analogs.csv", compression='gzip')
 
@@ -17,9 +18,12 @@ def get_analog_prices_for_entry(data, entry):
     
     # Step 2: Check for the same housing_complex_name
     analogs = None
-    if entry['housing_comlex_name'] != 'None':
+    if entry['housing_comlex_name'] != 'None' or entry['housing_comlex_name'] != '':
         entry['housing_comlex_name'] = entry['housing_comlex_name'].upper()
-        mask = (filtered_data['housing_comlex_name'] == entry['housing_comlex_name'])
+        
+        # Use fuzzy matching to find similar housing_complex_names
+        threshold = 85  # Define a threshold. You can adjust this value based on your needs.
+        mask = filtered_data['housing_comlex_name'].apply(lambda x: fuzz.ratio(x, entry['housing_comlex_name']) >= threshold)
         analogs = filtered_data[mask]
     
     
