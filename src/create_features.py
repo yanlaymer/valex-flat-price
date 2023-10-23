@@ -90,17 +90,24 @@ def get_location(city, district, street, house_number, housing_comlex_name):
             all_combinations.append(address)
 
     # Loop through the generated combinations
+    tries = len(all_combinations)
+    logger.info(f"Trying {tries} combinations")
+    inc = 0
     for address in all_combinations:
         try:
             logger.info(f"Trying geolocator NOMINATIM")
             location = geolocator.geocode(address)
+            inc += 1
             if location:
+                logger.info(f"Tried {inc} combinations using Nominatim")
                 return location
         except:
             logger.error("Nominatim failed. Switching to ArcGIS")
+            inc += 1
             # If Nominatim fails, switch to ArcGIS
             location = geolocator_v2.geocode(address)
             if location:
+                logger.info(f"Tried {inc} combinations using ArcGIS")
                 return location
 
     return None
