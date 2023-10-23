@@ -5,7 +5,7 @@ from pickle import load
 import pandas as pd
 from time import sleep
 
-ARTEFACTS_PATH = 'model/artefacts/'
+ARTEFACTS_PATH = "model/artefacts/"
 ENCODERS = {
     "district": "district_encoder.sav",
     "owner": "owner_encoder.sav",
@@ -13,20 +13,23 @@ ENCODERS = {
     "flat_renovation": "flat_renovation_encoder.sav",
     "flat_priv": "flat_priv_encoder.sav",
     "furniture": "furniture_encoder.sav",
-    "toilet": "toilet_encoder.sav"
+    "toilet": "toilet_encoder.sav",
 }
 
 encoders = {}
 
 for key, filename in ENCODERS.items():
-    with open(ARTEFACTS_PATH + filename, 'rb') as f:
+    with open(ARTEFACTS_PATH + filename, "rb") as f:
         encoders[key] = load(f)
+
 
 def check_password(stored_password, user_password):
     return stored_password == hashlib.sha256(user_password.encode()).hexdigest()
 
+
 st.title("VALEX ОЦЕНКА КВАРТИРЫ")
 st.write("Заполните следующие поля, чтобы получить оценку стоимости вашей квартиры.")
+
 
 def main():
     # Location Information
@@ -39,8 +42,11 @@ def main():
         """,
         unsafe_allow_html=True,
     )
-    input_type = st.radio("Как вы хотите указать местоположение?", ["Введите адрес", "Введите широту и долготу"])
-    
+    input_type = st.radio(
+        "Как вы хотите указать местоположение?",
+        ["Введите адрес", "Введите широту и долготу"],
+    )
+
     if input_type == "Введите адрес":
         city = st.text_input("Город")
         district = st.text_input("Район")
@@ -55,7 +61,7 @@ def main():
         home_number = None
         latitude = st.text_input("Широта (формат: xx.xxxxxx)")
         longitude = st.text_input("Долгота (формат: xx.xxxxxx)")
-        
+
         try:
             latitude = float(latitude)
             longitude = float(longitude)
@@ -86,7 +92,6 @@ def main():
 
     # Button to start prediction
     if st.button("Оценить стоимость квартиры"):
-        
         data = {
             "city": city,
             "district": district,
@@ -105,14 +110,14 @@ def main():
             "flat_priv_dorm": flat_priv_dorm,
             "flat_renovation": flat_renovation,
             "flat_toilet": flat_toilet,
-            "live_furniture": live_furniture
+            "live_furniture": live_furniture,
         }
         status_placeholder = st.empty()
         status_placeholder.text("Находим признаки... ⏳")
         sleep(1)  # Simulating some processing time
         predictor = Predictor(data)
         price, links = predictor.predict_price()
-        
+
         status_placeholder.text("Сверяемся с аналогами... ⏳")
         sleep(0.5)  # Simulating some processing time
 
@@ -120,12 +125,12 @@ def main():
 
         status_placeholder.text("Получение оценки... ⏳")
         sleep(1)  # Simulating some processing time
-        st.success(f"Оценка квартиры: {round(price, -4):,.0f}".replace(',', ' ') + " Т")
+        st.success(f"Оценка квартиры: {round(price, -4):,.0f}".replace(",", " ") + " Т")
         status_placeholder.text("Готово ✅")
 
         # plot map
-        lat, lon = predictor.model_entry['latitude'], predictor.model_entry['longitude']
-        map_df = pd.DataFrame({'lat': [lat], 'lon': [lon]})
+        lat, lon = predictor.model_entry["latitude"], predictor.model_entry["longitude"]
+        map_df = pd.DataFrame({"lat": [lat], "lon": [lon]})
         st.map(map_df, zoom=15)
 
         links_html = "<div style='white-space: nowrap;'>"
@@ -139,15 +144,33 @@ def main():
 
         # Display the container in Streamlit
         st.markdown(links_html, unsafe_allow_html=True)
-            
+
         st.write("Распределение цен")
-        analog_prices_min = predictor.model_entry['analog_prices_min'] * predictor.entry['total_square']
-        analog_prices_median = predictor.model_entry['analog_prices_median'] * predictor.entry['total_square']
-        analog_prices_max = predictor.model_entry['analog_prices_max'] * predictor.entry['total_square']
-        st.write(f"Минимальная цена (без ремонта): {round(analog_prices_min, -4):,.0f}".replace(',', ' ') + " Т")
-        st.write(f"Медианная цена: {round(analog_prices_median, -4):,.0f}".replace(',', ' ') + " Т")
-        st.write(f"Максимальная цена: {round(analog_prices_max, -4):,.0f}".replace(',', ' ') + " Т")
-            
+        analog_prices_min = (
+            predictor.model_entry["analog_prices_min"] * predictor.entry["total_square"]
+        )
+        analog_prices_median = (
+            predictor.model_entry["analog_prices_median"]
+            * predictor.entry["total_square"]
+        )
+        analog_prices_max = (
+            predictor.model_entry["analog_prices_max"] * predictor.entry["total_square"]
+        )
+        st.write(
+            f"Минимальная цена (без ремонта): {round(analog_prices_min, -4):,.0f}".replace(
+                ",", " "
+            )
+            + " Т"
+        )
+        st.write(
+            f"Медианная цена: {round(analog_prices_median, -4):,.0f}".replace(",", " ")
+            + " Т"
+        )
+        st.write(
+            f"Максимальная цена: {round(analog_prices_max, -4):,.0f}".replace(",", " ")
+            + " Т"
+        )
+
 
 def auth():
     username = st.sidebar.text_input("Логин")
@@ -160,7 +183,8 @@ def auth():
             st.warning("Некорректные данные. Попробовать еще раз.")
     return st.session_state.logged_in
 
-if 'logged_in' not in st.session_state:
+
+if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if auth():
