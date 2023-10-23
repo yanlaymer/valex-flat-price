@@ -82,11 +82,11 @@ def get_location(city, district, street, house_number, housing_comlex_name):
         'housing_comlex_name': housing_comlex_name
     }
     
-    # Generate all possible combinations of address components
     all_combinations = []
-    for r in range(len(components), 0, -1):
-        for subset in combinations(components.keys(), r):
-            address = ', '.join(components[key] for key in subset)
+    sorted_components = sorted(components.items(), key=lambda x: -len(x[1]))
+    for r in range(len(sorted_components), 0, -1):
+        for subset in combinations(sorted_components, r):
+            address = ', '.join(item[1] for item in subset)
             all_combinations.append(address)
 
     # Loop through the generated combinations
