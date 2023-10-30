@@ -81,14 +81,12 @@ def main():
     building_type_choices = encoders["building"].classes_.tolist()
     building_type = st.selectbox("Тип здания", building_type_choices)
 
-    flat_priv_dorm_choices = encoders["flat_priv"].classes_.tolist()
-    flat_priv_dorm = st.selectbox("Частное общежитие", flat_priv_dorm_choices)
     flat_renovation_choices = encoders["flat_renovation"].classes_.tolist()
     flat_renovation = st.selectbox("Ремонт в квартире", flat_renovation_choices)
     flat_toilet_choices = encoders["toilet"].classes_.tolist()
     flat_toilet = st.selectbox("Туалет", flat_toilet_choices)
-    live_furniture_choices = encoders["furniture"].classes_.tolist()
-    live_furniture = st.selectbox("Мебель", live_furniture_choices)
+    # live_furniture_choices = encoders["furniture"].classes_.tolist()
+    # live_furniture = st.selectbox("Мебель", live_furniture_choices)
 
     # Button to start prediction
     if st.button("Оценить стоимость квартиры"):
@@ -107,10 +105,10 @@ def main():
             "building_floor": building_floor,
             "live_rooms": live_rooms,
             "building_year": building_year,
-            "flat_priv_dorm": flat_priv_dorm,
+            "flat_priv_dorm": 'Нет',
             "flat_renovation": flat_renovation,
             "flat_toilet": flat_toilet,
-            "live_furniture": live_furniture,
+            # "live_furniture": live_furniture,
         }
         status_placeholder = st.empty()
         status_placeholder.text("Находим признаки... ⏳")
