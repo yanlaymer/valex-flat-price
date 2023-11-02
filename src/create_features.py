@@ -20,18 +20,25 @@ def get_analog_prices_for_entry(data, entry):
 
     # Step 2: Check for the same housing_complex_name
     analogs = None
-    if entry["housing_comlex_name"] != "None" or entry["housing_comlex_name"] != "":
+    if entry["housing_comlex_name"] != "None" and entry["housing_comlex_name"] != "":
         entry["housing_comlex_name"] = entry["housing_comlex_name"].upper()
 
-        # Use fuzzy matching to find similar housing_complex_names
-        threshold = (
-            85  # Define a threshold. You can adjust this value based on your needs.
+        # Define a threshold. You can adjust this value based on your needs.
+        threshold = 85
+
+        # Apply fuzzy matching to get scores for all rows
+        scores = filtered_data["housing_comlex_name"].apply(
+            lambda x: fuzz.token_set_ratio(x, entry["housing_comlex_name"])
         )
-        mask = filtered_data["housing_comlex_name"].apply(
-            lambda x: fuzz.token_set_ratio(x, entry["housing_comlex_name"]) >= threshold
-        )
-        logger.info(f"Found {len(filtered_data[mask])} analogs by housing complex name with name {filtered_data['housing_comlex_name'].values[0]}")
-        analogs = filtered_data[mask]
+
+        # Create a new DataFrame with scores
+        filtered_data_with_scores = filtered_data.assign(score=scores)
+
+        # Filter the DataFrame by the threshold and sort by scores
+        analogs = filtered_data_with_scores[filtered_data_with_scores['score'] >= threshold]
+        analogs = analogs.sort_values(by='score', ascending=False)
+
+        logger.info(f"Found {len(analogs)} analogs by housing complex name with name {entry['housing_comlex_name']}")
 
     if analogs is None or len(analogs) < 5:
         tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
