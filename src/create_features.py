@@ -30,6 +30,7 @@ def get_analog_prices_for_entry(data, entry):
         mask = filtered_data["housing_comlex_name"].apply(
             lambda x: fuzz.ratio(x, entry["housing_comlex_name"]) >= threshold
         )
+        logger.info(f"Found {len(filtered_data[mask])} analogs by housing complex name with name {filtered_data['housing_comlex_name'].values[0]}")
         analogs = filtered_data[mask]
 
     if analogs is None or len(analogs) < 5:
