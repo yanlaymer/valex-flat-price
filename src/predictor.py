@@ -38,7 +38,7 @@ class Predictor:
             prediction * self.entry["total_square"],
             analog_min_price if analog_min_price > prediction else 0,
             analog_median_price if analog_median_price * 1.5 > prediction else 0,
-            analog_max_price if analog_max_price * 1.5 < prediction else 0,
+            analog_max_price if analog_max_price * 1.5 < prediction else 0
         )
 
         logger.info(f"MIN PRICE: {analog_min_price:,.0f}")

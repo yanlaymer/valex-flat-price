@@ -7,7 +7,7 @@ from itertools import combinations
 from src.constants import MODEL_COLUMNS
 from fuzzywuzzy import fuzz
 
-analogs = pd.read_csv("data/analogs.csv", compression="gzip")
+analogs = pd.read_csv("data/analogs.csv", compression="gzip") # db in rl
 
 
 def get_analog_prices_for_entry(data, entry):
@@ -40,7 +40,7 @@ def get_analog_prices_for_entry(data, entry):
 
         logger.info(f"Found {len(analogs)} analogs by housing complex name with name {entry['housing_comlex_name']}")
 
-    if analogs is None or len(analogs) < 5:
+    if analogs is None or len(analogs) < 3:
         tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
         distance_limit_rad = 1 / 6371.0088
         _, indices = tree.query(
@@ -57,7 +57,7 @@ def get_analog_prices_for_entry(data, entry):
 
         if analogs is None or len(analogs) < 3:
             tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
-            distance_limit_rad = 3 / 6371.0088
+            distance_limit_rad = 5 / 6371.0088
             _, indices = tree.query(
                 [np.radians(entry["latitude"]), np.radians(entry["longitude"])],
                 distance_upper_bound=distance_limit_rad,
