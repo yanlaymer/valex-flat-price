@@ -1,5 +1,6 @@
 scikit-learn
 catboost
+numpy
 pandas
 geopy
 pyarrow
