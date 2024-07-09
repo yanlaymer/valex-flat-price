@@ -1,5 +1,5 @@
-scikit-learn==1.0.2
-catboost==1.2.2
+scikit-learn
+catboost
 pandas
 geopy
 pyarrow
