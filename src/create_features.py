@@ -7,7 +7,7 @@ from itertools import combinations
 from src.constants import MODEL_COLUMNS
 from fuzzywuzzy import fuzz
 
-analogs = pd.read_csv("data/analogs.csv", compression="gzip") # db in rl
+analogs = pd.read_csv("data/current_analogs.csv") # db in rl
 
 
 def get_analog_prices_for_entry(data, entry):
@@ -20,7 +20,7 @@ def get_analog_prices_for_entry(data, entry):
 
     # Step 2: Check for the same housing_complex_name
     analogs = None
-    if entry["housing_comlex_name"] != "None" and entry["housing_comlex_name"] != "":
+    if entry["housing_comlex_name"] != "NONE" and entry["housing_comlex_name"] != "":
         entry["housing_comlex_name"] = entry["housing_comlex_name"].upper()
 
         # Define a threshold. You can adjust this value based on your needs.
@@ -57,7 +57,7 @@ def get_analog_prices_for_entry(data, entry):
 
         if analogs is None or len(analogs) < 3:
             tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
-            distance_limit_rad = 5 / 6371.0088
+            distance_limit_rad = 3 / 6371.0088
             _, indices = tree.query(
                 [np.radians(entry["latitude"]), np.radians(entry["longitude"])],
                 distance_upper_bound=distance_limit_rad,
@@ -67,6 +67,19 @@ def get_analog_prices_for_entry(data, entry):
             # Filter out invalid indices again
             valid_indices = indices[indices != len(filtered_data)]
             analogs = filtered_data.iloc[valid_indices]
+            
+            if analogs is None or len(analogs) < 3:
+                tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
+                distance_limit_rad = 10 / 6371.0088
+                _, indices = tree.query(
+                    [np.radians(entry["latitude"]), np.radians(entry["longitude"])],
+                    distance_upper_bound=distance_limit_rad,
+                    k=5,
+                )
+
+                # Filter out invalid indices again
+                valid_indices = indices[indices != len(filtered_data)]
+                analogs = filtered_data.iloc[valid_indices]
 
     # Return the statistics for the found analogs
     return (
