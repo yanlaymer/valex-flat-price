@@ -12,9 +12,7 @@ analogs = pd.read_csv("data/current_analogs_10K.csv") # db in rl
 
 def get_analog_prices_for_entry(data, entry):
     # Step 1: Filter based on rooms_number and construction_year
-    mask = (data["rooms_number"] == entry["rooms_number"]) & (
-        # np.abs(data["construction_year"] - entry["construction_year"]) <= 7
-    )
+    mask = (data["rooms_number"] == entry["rooms_number"])
 
     filtered_data = data[mask]
 
