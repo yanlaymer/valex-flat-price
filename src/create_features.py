@@ -71,7 +71,7 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
             # Define distance thresholds in kilometers
             distance_thresholds = [1, 3, 10, 15]  # You can adjust these values as needed
             entry_coords_rad = np.radians([entry["latitude"], entry["longitude"]])
-            tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values), metric='haversine')
+            tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
 
             for threshold_km in distance_thresholds:
                 distance_limit_rad = threshold_km / 6371.0088  # Earth's radius in kilometers
