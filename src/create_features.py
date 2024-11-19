@@ -7,13 +7,13 @@ from itertools import combinations
 from src.constants import MODEL_COLUMNS
 from fuzzywuzzy import fuzz
 
-analogs = pd.read_csv("data/current_analogs.csv") # db in rl
+analogs = pd.read_csv("data/current_analogs_10K.csv") # db in rl
 
 
 def get_analog_prices_for_entry(data, entry):
     # Step 1: Filter based on rooms_number and construction_year
     mask = (data["rooms_number"] == entry["rooms_number"]) & (
-        np.abs(data["construction_year"] - entry["construction_year"]) <= 7
+        # np.abs(data["construction_year"] - entry["construction_year"]) <= 7
     )
 
     filtered_data = data[mask]
