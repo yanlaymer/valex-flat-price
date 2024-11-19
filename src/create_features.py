@@ -24,7 +24,7 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
              and a list of analog links (with length equal to required_analogs).
     """
     # Validate required columns in data
-    required_columns = ["rooms_number", "construction_year", "housing_complex_name", "latitude", "longitude",
+    required_columns = ["rooms_number", "construction_year", "housing_comlex_name", "latitude", "longitude",
                         "price_per_square_meter", "link"]
     missing_columns = [col for col in required_columns if col not in data.columns]
     if missing_columns:
@@ -32,7 +32,7 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
         raise ValueError(f"The data is missing required columns: {missing_columns}")
 
     # Validate required keys in entry
-    required_keys = ["rooms_number", "construction_year", "housing_complex_name", "latitude", "longitude"]
+    required_keys = ["rooms_number", "construction_year", "housing_comlex_name", "latitude", "longitude"]
     missing_keys = [key for key in required_keys if key not in entry]
     if missing_keys:
         logger.error(f"The entry is missing required keys: {missing_keys}")
