@@ -69,7 +69,7 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
     if len(analogs) < required_analogs:
         try:
             # Define distance thresholds in kilometers
-            distance_thresholds = [1, 3, 10, 15]  # You can adjust these values as needed
+            distance_thresholds = [1, 3, 10, 15, 20, 50, 80]  # You can adjust these values as needed
             entry_coords_rad = np.radians([entry["latitude"], entry["longitude"]])
             tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
 
