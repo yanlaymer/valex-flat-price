@@ -10,85 +10,124 @@ from fuzzywuzzy import fuzz
 analogs = pd.read_csv("data/current_analogs_10K.csv") # db in rl
 
 
-def get_analog_prices_for_entry(data, entry):
-    # Step 1: Filter based on rooms_number and construction_year
-    mask = (data["rooms_number"] == entry["rooms_number"])
+def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analogs: int = 3) -> tuple:
+    """
+    Retrieves analog price statistics and links based on the provided entry.
 
-    filtered_data = data[mask]
+    Parameters:
+    - data (pd.DataFrame): The DataFrame containing analogs with necessary features.
+    - entry (dict): A dictionary containing details of the entry to find analogs for.
+    - required_analogs (int): The number of analog links to return. Default is 3.
 
-    # Step 2: Check for the same housing_complex_name
-    analogs = None
-    if entry["housing_comlex_name"] != "NONE" and entry["housing_comlex_name"] != "":
-        entry["housing_comlex_name"] = entry["housing_comlex_name"].upper()
+    Returns:
+    - tuple: A tuple containing median, max, min price per square meter, number of analogs,
+             and a list of analog links (with length equal to required_analogs).
+    """
+    # Validate required columns in data
+    required_columns = ["rooms_number", "construction_year", "housing_complex_name", "latitude", "longitude",
+                        "price_per_square_meter", "link"]
+    missing_columns = [col for col in required_columns if col not in data.columns]
+    if missing_columns:
+        logger.error(f"The data is missing required columns: {missing_columns}")
+        raise ValueError(f"The data is missing required columns: {missing_columns}")
 
-        # Define a threshold. You can adjust this value based on your needs.
-        threshold = 85
+    # Validate required keys in entry
+    required_keys = ["rooms_number", "construction_year", "housing_complex_name", "latitude", "longitude"]
+    missing_keys = [key for key in required_keys if key not in entry]
+    if missing_keys:
+        logger.error(f"The entry is missing required keys: {missing_keys}")
+        raise KeyError(f"The entry is missing required keys: {missing_keys}")
 
-        # Apply fuzzy matching to get scores for all rows
-        scores = filtered_data["housing_comlex_name"].apply(
-            lambda x: fuzz.token_set_ratio(x, entry["housing_comlex_name"])
-        )
+    # Step 1: Filter based on rooms_number
+    try:
+        rooms_number = entry["rooms_number"]
+        mask = data["rooms_number"] == rooms_number
+        filtered_data = data[mask].copy()
+        logger.info(f"Filtered data based on rooms_number={rooms_number}: {filtered_data.shape[0]} records found.")
+    except Exception as e:
+        logger.exception("Error filtering data based on rooms_number.")
+        raise e
 
-        # Create a new DataFrame with scores
-        filtered_data_with_scores = filtered_data.assign(score=scores)
+    # Step 2: Fuzzy match on housing_complex_name if applicable
+    analogs = pd.DataFrame()
+    housing_complex_name = entry.get("housing_complex_name", "").strip().upper()
 
-        # Filter the DataFrame by the threshold and sort by scores
-        analogs = filtered_data_with_scores[filtered_data_with_scores['score'] >= threshold]
-        analogs = analogs.sort_values(by='score', ascending=False)
-
-        logger.info(f"Found {len(analogs)} analogs by housing complex name with name {entry['housing_comlex_name']}")
-
-    if analogs is None or len(analogs) < 3:
-        tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
-        distance_limit_rad = 1 / 6371.0088
-        _, indices = tree.query(
-            [np.radians(entry["latitude"]), np.radians(entry["longitude"])],
-            distance_upper_bound=distance_limit_rad,
-            k=3,
-        )
-
-        # Ensure indices is always a list and filter out invalid indices
-        indices = np.atleast_1d(indices)
-        valid_indices = indices[indices != len(filtered_data)]  # Filter out invalid indices
-
-        analogs = filtered_data.iloc[valid_indices]
-
-        if analogs is None or len(analogs) < 3:
-            tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
-            distance_limit_rad = 3 / 6371.0088
-            _, indices = tree.query(
-                [np.radians(entry["latitude"]), np.radians(entry["longitude"])],
-                distance_upper_bound=distance_limit_rad,
-                k=5,
+    if housing_complex_name and housing_complex_name != "NONE":
+        try:
+            threshold = 85  # Define fuzzy matching threshold
+            scores = filtered_data["housing_complex_name"].fillna("").str.upper().apply(
+                lambda x: fuzz.token_set_ratio(x, housing_complex_name)
             )
+            filtered_data_with_scores = filtered_data.assign(score=scores)
+            analogs = filtered_data_with_scores[filtered_data_with_scores['score'] >= threshold]
+            analogs = analogs.sort_values(by='score', ascending=False)
+            logger.info(f"Found {len(analogs)} analogs by housing_complex_name with name '{housing_complex_name}'.")
+        except Exception as e:
+            logger.exception("Error during fuzzy matching of housing_complex_name.")
 
-            # Filter out invalid indices again
-            valid_indices = indices[indices != len(filtered_data)]
-            analogs = filtered_data.iloc[valid_indices]
-            
-            if analogs is None or len(analogs) < 3:
-                tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
-                distance_limit_rad = 10 / 6371.0088
-                _, indices = tree.query(
-                    [np.radians(entry["latitude"]), np.radians(entry["longitude"])],
-                    distance_upper_bound=distance_limit_rad,
-                    k=5,
-                )
+    # Step 3: If not enough analogs found, use geographic proximity
+    if len(analogs) < required_analogs:
+        try:
+            # Define distance thresholds in kilometers
+            distance_thresholds = [1, 3, 10, 15]  # You can adjust these values as needed
+            entry_coords_rad = np.radians([entry["latitude"], entry["longitude"]])
+            tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values), metric='haversine')
 
-                # Filter out invalid indices again
-                valid_indices = indices[indices != len(filtered_data)]
-                analogs = filtered_data.iloc[valid_indices]
+            for threshold_km in distance_thresholds:
+                distance_limit_rad = threshold_km / 6371.0088  # Earth's radius in kilometers
+                distances, indices = tree.query(entry_coords_rad.reshape(1, -1), 
+                                                distance_upper_bound=distance_limit_rad, 
+                                                k=required_analogs)
 
-    # Return the statistics for the found analogs
-    return (
-        analogs["price_per_square_meter"].median(),
-        analogs["price_per_square_meter"].max(),
-        analogs["price_per_square_meter"].min(),
-        len(analogs),
-        analogs["link"].tolist()[0],
-        analogs["link"].tolist()[1],
-        analogs["link"].tolist()[2],
-    )
+                # Flatten the indices and filter out invalid entries
+                indices = indices.flatten()
+                valid_indices = indices[indices < len(filtered_data)]
+                new_analogs = filtered_data.iloc[valid_indices]
+
+                # If fuzzy matched analogs exist, combine them
+                if not analogs.empty:
+                    new_analogs = pd.concat([analogs, new_analogs]).drop_duplicates()
+
+                if len(new_analogs) >= required_analogs:
+                    analogs = new_analogs.head(required_analogs)
+                    logger.info(f"Found {len(analogs)} analogs within {threshold_km} km.")
+                    break
+                else:
+                    logger.info(f"Only found {len(new_analogs)} analogs within {threshold_km} km. Expanding search...")
+                    analogs = new_analogs
+
+            if len(analogs) < required_analogs:
+                logger.warning(f"Only found {len(analogs)} analogs after applying all distance thresholds.")
+        except Exception as e:
+            logger.exception("Error during geographic proximity search.")
+
+    # Step 4: Finalize analogs
+    if analogs.empty:
+        logger.warning("No analogs found for the given entry.")
+        return (np.nan, np.nan, np.nan, 0) + tuple([None] * required_analogs)
+
+    # Ensure 'price_per_square_meter' has valid numeric values
+    analogs = analogs.dropna(subset=["price_per_square_meter"])
+    if analogs.empty:
+        logger.warning("No analogs with valid 'price_per_square_meter' found.")
+        return (np.nan, np.nan, np.nan, 0) + tuple([None] * required_analogs)
+
+    # Compute statistics
+    median_price = analogs["price_per_square_meter"].median()
+    max_price = analogs["price_per_square_meter"].max()
+    min_price = analogs["price_per_square_meter"].min()
+    num_analogs = len(analogs)
+
+    # Extract analog links, ensuring there are enough links
+    links = analogs["link"].dropna().unique().tolist()
+    analog_links = links[:required_analogs]
+    while len(analog_links) < required_analogs:
+        analog_links.append(None)  # Fill with None if not enough links
+
+    logger.info(f"Returning statistics and analog links: Median={median_price}, Max={max_price}, "
+                f"Min={min_price}, Count={num_analogs}, Links={analog_links}")
+
+    return (median_price, max_price, min_price, num_analogs) + tuple(analog_links)
 
 
 def get_location(city, district, street, house_number, housing_comlex_name):
