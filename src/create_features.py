@@ -234,6 +234,7 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
     bathroom = entry["flat_toilet"].upper()
     former_hostel = True if entry["flat_priv_dorm"] == "Да" else False
 
+    location = None
     if entry["latitude"] is not None and entry["longitude"] is not None:
         latitude = entry["latitude"]
         longitude = entry["longitude"]
@@ -241,7 +242,6 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
         # address
         location = Nominatim(user_agent="my_app").reverse(f"{latitude}, {longitude}")
         logger.info(f"Location Found: {location.address}")
-        entry['address_geocoder'] = location.address
     else:
         location = get_location(
             city, district, street, house_number, housing_comlex_name
@@ -301,6 +301,9 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
         entry["analog_2"],
         entry["analog_3"],
     ) = get_analog_prices_for_entry(analogs, entry)
+    
+    if location:
+        entry['address_geocoder'] = location.address
 
     logger.info(f"ENTRY AFTER ANALOGS: {entry}")
 
