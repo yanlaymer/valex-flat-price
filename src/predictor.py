@@ -44,6 +44,11 @@ class Predictor:
         logger.info(f"MIN PRICE: {analog_min_price:,.0f}")
         logger.info(f"MEDIAN PRICE: {analog_median_price:,.0f}")
         logger.info(f"MAX PRICE: {analog_max_price:,.0f}")
+        
+        address_geocoder = None
+        if self.model_entry['address_geocoder']:
+            address_geocoder = self.model_entry['address_geocoder']
+            
 
         if corrected_price == 0:
             corrected_price = analog_median_price * self.entry["total_square"]
@@ -68,4 +73,4 @@ class Predictor:
             self.model_entry["analog_3"],
         ]
 
-        return self.final_price, analog_links
+        return self.final_price, analog_links, address_geocoder

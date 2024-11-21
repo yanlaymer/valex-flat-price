@@ -114,7 +114,7 @@ def main():
         status_placeholder.text("Находим признаки... ⏳")
         sleep(1)  # Simulating some processing time
         predictor = Predictor(data)
-        price, links = predictor.predict_price()
+        price, links, address_geocoder = predictor.predict_price()
 
         status_placeholder.text("Сверяемся с аналогами... ⏳")
         sleep(0.5)  # Simulating some processing time
@@ -125,6 +125,7 @@ def main():
         sleep(1)  # Simulating some processing time
         st.success(f"Оценка квартиры: {round(price, -4):,.0f}".replace(",", " ") + " Т")
         status_placeholder.text("Готово ✅")
+        st.text(f"Найденный адрес по геокодеру: {address_geocoder}")
 
         # plot map
         lat, lon = predictor.model_entry["latitude"], predictor.model_entry["longitude"]

@@ -241,6 +241,7 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
         # address
         location = Nominatim(user_agent="my_app").reverse(f"{latitude}, {longitude}")
         logger.info(f"Location Found: {location.address}")
+        entry['address_geocoder'] = location.address
     else:
         location = get_location(
             city, district, street, house_number, housing_comlex_name
