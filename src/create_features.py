@@ -304,6 +304,8 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
     
     if location:
         entry['address_geocoder'] = location.address
+    else:
+        entry['address_geocoder'] = "Не найдено"
 
     logger.info(f"ENTRY AFTER ANALOGS: {entry}")
 
