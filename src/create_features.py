@@ -7,7 +7,7 @@ from itertools import combinations
 from src.constants import MODEL_COLUMNS
 from fuzzywuzzy import fuzz
 
-analogs = pd.read_csv("data/current_analogs_10K.csv") # db in rl
+analogs = pd.read_csv("data/current_analogs_40K.csv") # db in rl
 
 
 def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analogs: int = 3) -> tuple:
