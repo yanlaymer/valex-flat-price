@@ -10,7 +10,7 @@ from fuzzywuzzy import fuzz
 analogs = pd.read_csv("data/current_analogs_40K.csv") # db in rl
 
 
-def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analogs: int = 2) -> tuple:
+def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analogs: int = 3) -> tuple:
     """
     Retrieves analog price statistics and links based on the provided entry.
 
