@@ -63,6 +63,7 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
             filtered_data_with_scores = filtered_data.assign(score=scores)
             analogs = filtered_data_with_scores[filtered_data_with_scores['score'] >= threshold]
             analogs = analogs.sort_values(by='score', ascending=False)
+            analogs['source'] = 'complex_name'  # Mark source
             logger.info(f"Found {len(analogs)} analogs by housing_complex_name with name '{housing_complex_name}'.")
         except Exception as e:
             logger.exception("Error during fuzzy matching of housing_complex_name.")
@@ -88,6 +89,8 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
                 # Filter valid indices
                 valid_indices = [i for i in indices if i < len(filtered_data)]
                 new_analogs = filtered_data.iloc[valid_indices]
+                new_analogs = new_analogs.copy()
+                new_analogs['source'] = 'proximity'  # Mark source
 
                 # Combine with accumulated analogs
                 accumulated_analogs = pd.concat([accumulated_analogs, new_analogs]).drop_duplicates()
@@ -122,6 +125,11 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
     max_price = analogs["price_per_square_meter"].max()
     min_price = analogs["price_per_square_meter"].min()
     num_analogs = len(analogs)
+
+    # Sort analogs so that those from complex name matching come first
+    analogs['source'] = analogs['source'].fillna('proximity')  # Fill missing sources with 'proximity'
+    analogs['source_order'] = analogs['source'].map({'complex_name': 0, 'proximity': 1})
+    analogs = analogs.sort_values(by=['source_order', 'score'], ascending=[True, False])
 
     # Extract analog links, ensuring there are enough links
     links = analogs["link"].dropna().unique().tolist()
