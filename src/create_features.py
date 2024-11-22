@@ -56,7 +56,7 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
     if housing_complex_name and housing_complex_name != "NONE":
         try:
             threshold = 85  # Define fuzzy matching threshold
-            scores = filtered_data["housing_complex_name"].fillna("").str.upper().apply(
+            scores = filtered_data["housing_comlex_name"].fillna("").str.upper().apply(
                 lambda x: fuzz.token_set_ratio(x, housing_complex_name)
             )
             filtered_data_with_scores = filtered_data.assign(score=scores)
