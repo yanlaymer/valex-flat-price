@@ -10,7 +10,7 @@ from fuzzywuzzy import fuzz
 analogs = pd.read_csv("data/current_analogs_40K.csv") # db in rl
 
 
-def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analogs: int = 3) -> tuple:
+def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analogs: int = 2) -> tuple:
     """
     Retrieves analog price statistics and links based on the provided entry.
 
@@ -41,7 +41,7 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
     # Step 1: Filter based on rooms_number
     try:
         rooms_number = entry["rooms_number"]
-        mask = data["rooms_number"] == rooms_number
+        mask = (-1 <= data["rooms_number"] - rooms_number <= 1)
         filtered_data = data[mask].copy()
         logger.info(f"Filtered data based on rooms_number={rooms_number}: {filtered_data.shape[0]} records found.")
     except Exception as e:
