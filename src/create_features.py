@@ -38,12 +38,13 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
         logger.error(f"The entry is missing required keys: {missing_keys}")
         raise KeyError(f"The entry is missing required keys: {missing_keys}")
 
-    # Step 1: Filter based on rooms_number
+    # Step 1: Filter based on rooms_number (including same, +1, and -1)
     try:
         rooms_number = entry["rooms_number"]
-        mask_room_lower = (data["rooms_number"] - rooms_number) == 1
-        mask_room_upper = (data["rooms_number"] - rooms_number) == -1
-        filtered_data = data[mask_room_lower | mask_room_upper].copy()
+        mask_same_room = data["rooms_number"] == rooms_number
+        mask_room_lower = data["rooms_number"] == rooms_number - 1
+        mask_room_upper = data["rooms_number"] == rooms_number + 1
+        filtered_data = data[mask_same_room | mask_room_lower | mask_room_upper].copy()
         logger.info(f"Filtered data based on rooms_number={rooms_number}: {filtered_data.shape[0]} records found.")
     except Exception as e:
         logger.exception("Error filtering data based on rooms_number.")
@@ -70,35 +71,38 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
     if len(analogs) < required_analogs:
         try:
             # Define distance thresholds in kilometers
-            distance_thresholds = [1, 3, 10, 15, 20, 50]  # You can adjust these values as needed
+            distance_thresholds = [1, 3, 5, 10, 15, 20, 50]  # Adjust as needed
             entry_coords_rad = np.radians([entry["latitude"], entry["longitude"]])
             tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
 
+            # Initialize an empty DataFrame to accumulate analogs
+            accumulated_analogs = analogs.copy()
+
             for threshold_km in distance_thresholds:
                 distance_limit_rad = threshold_km / 6371.0088  # Earth's radius in kilometers
-                distances, indices = tree.query(entry_coords_rad.reshape(1, -1), 
-                                                distance_upper_bound=distance_limit_rad, 
-                                                k=required_analogs)
 
-                # Flatten the indices and filter out invalid entries
-                indices = indices.flatten()
-                valid_indices = indices[indices < len(filtered_data)]
+                # Query the tree for points within the distance limit
+                indices = tree.query_ball_point(entry_coords_rad.reshape(1, -1), distance_limit_rad)
+                indices = indices[0]  # query_ball_point returns a list of arrays
+
+                # Filter valid indices
+                valid_indices = [i for i in indices if i < len(filtered_data)]
                 new_analogs = filtered_data.iloc[valid_indices]
 
-                # If fuzzy matched analogs exist, combine them
-                if not analogs.empty:
-                    new_analogs = pd.concat([analogs, new_analogs]).drop_duplicates()
+                # Combine with accumulated analogs
+                accumulated_analogs = pd.concat([accumulated_analogs, new_analogs]).drop_duplicates()
 
-                if len(new_analogs) >= required_analogs:
-                    analogs = new_analogs.head(required_analogs)
-                    logger.info(f"Found {len(analogs)} analogs within {threshold_km} km.")
+                if len(accumulated_analogs) >= required_analogs:
+                    logger.info(f"Found {len(accumulated_analogs)} analogs within {threshold_km} km.")
                     break
                 else:
-                    logger.info(f"Only found {len(new_analogs)} analogs within {threshold_km} km. Expanding search...")
-                    analogs = new_analogs
+                    logger.info(f"Only found {len(accumulated_analogs)} analogs within {threshold_km} km. Expanding search...")
 
-            if len(analogs) < required_analogs:
-                logger.warning(f"Only found {len(analogs)} analogs after applying all distance thresholds.")
+            if len(accumulated_analogs) < required_analogs:
+                logger.warning(f"Only found {len(accumulated_analogs)} analogs after applying all distance thresholds.")
+
+            analogs = accumulated_analogs
+
         except Exception as e:
             logger.exception("Error during geographic proximity search.")
 
