@@ -41,8 +41,9 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
     # Step 1: Filter based on rooms_number
     try:
         rooms_number = entry["rooms_number"]
-        mask = (-1 <= data["rooms_number"] - rooms_number <= 1)
-        filtered_data = data[mask].copy()
+        mask_room_lower = (data["rooms_number"] - rooms_number) == 1
+        mask_room_upper = (data["rooms_number"] - rooms_number) == -1
+        filtered_data = data[mask_room_lower | mask_room_upper].copy()
         logger.info(f"Filtered data based on rooms_number={rooms_number}: {filtered_data.shape[0]} records found.")
     except Exception as e:
         logger.exception("Error filtering data based on rooms_number.")
