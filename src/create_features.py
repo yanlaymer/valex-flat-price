@@ -7,10 +7,9 @@ from itertools import combinations
 from src.constants import MODEL_COLUMNS
 from fuzzywuzzy import fuzz
 
-analogs = pd.read_csv("data/current_analogs_40K.csv") # db in rl
+analogs = pd.read_csv("data/analogs_50K.csv", compression='gzip') # db in rl
 
-
-def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analogs: int = 3) -> tuple:
+def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analogs: int = 5) -> tuple:
     """
     Retrieves analog price statistics and links based on the provided entry.
 
@@ -25,33 +24,38 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
     """
     # Validate required columns in data
     required_columns = ["rooms_number", "construction_year", "housing_comlex_name", "latitude", "longitude",
-                        "price_per_square_meter", "link"]
+                        "price_per_square_meter", "link", 'condition', 'wall_type']
     missing_columns = [col for col in required_columns if col not in data.columns]
     if missing_columns:
         logger.error(f"The data is missing required columns: {missing_columns}")
         raise ValueError(f"The data is missing required columns: {missing_columns}")
 
     # Validate required keys in entry
-    required_keys = ["rooms_number", "construction_year", "housing_comlex_name", "latitude", "longitude"]
+    required_keys = ["rooms_number", "construction_year", "housing_comlex_name", "latitude", "longitude", 'condition', 'wall_type']
     missing_keys = [key for key in required_keys if key not in entry]
     if missing_keys:
         logger.error(f"The entry is missing required keys: {missing_keys}")
         raise KeyError(f"The entry is missing required keys: {missing_keys}")
 
-    # Step 1: Filter based on rooms_number (including same, +1, and -1)
     try:
         rooms_number = entry["rooms_number"]
-        mask_same_room = data["rooms_number"] == rooms_number
-        mask_room_lower = data["rooms_number"] == rooms_number - 1
-        mask_room_upper = data["rooms_number"] == rooms_number + 1
-        filtered_data = data[mask_same_room | mask_room_lower | mask_room_upper].copy()
-        logger.info(f"Filtered data based on rooms_number={rooms_number}: {filtered_data.shape[0]} records found.")
+        wall_type = entry['wall_type'].upper()
+
+        logger.info(f"WALL TYPE OF ENTRY: {wall_type}")
+        # First, filter data to entries with the same rooms_number
+        filtered_data = data[data["rooms_number"] == rooms_number].copy()
+        if entry['condition'] == 'Черновая отделка':
+            filtered_data = filtered_data[filtered_data.condition == entry['condition']]
+        filtered_data = filtered_data[filtered_data['wall_type'].str.upper() == wall_type]
+        logger.info(f"Filtered data with exact rooms_number={rooms_number}: {filtered_data.shape[0]} records found.")
     except Exception as e:
         logger.exception("Error filtering data based on rooms_number.")
         raise e
 
-    # Step 2: Fuzzy match on housing_complex_name if applicable
+    # Initialize analogs DataFrame
     analogs = pd.DataFrame()
+
+    # Step 2: Fuzzy match on housing_complex_name if applicable
     housing_complex_name = entry.get("housing_comlex_name", "").strip().upper()
 
     if housing_complex_name and housing_complex_name != "NONE":
@@ -109,16 +113,102 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
         except Exception as e:
             logger.exception("Error during geographic proximity search.")
 
-    # Step 4: Finalize analogs
+    # Step 4: If not enough analogs found, expand rooms_number criteria
+    if len(analogs) < required_analogs:
+        logger.info("Not enough analogs found with exact rooms_number. Expanding rooms_number criteria.")
+        try:
+            # Include rooms_number -1 and +1
+            mask_same_room = data["rooms_number"] == rooms_number
+            mask_room_lower = data["rooms_number"] == rooms_number - 1
+            mask_room_upper = data["rooms_number"] == rooms_number + 1
+            expanded_data = data[mask_same_room | mask_room_lower | mask_room_upper].copy()
+            if entry['condition'] == 'Черновая отделка':
+                expanded_data = expanded_data[expanded_data.condition == entry['condition']]
+            expanded_data = expanded_data[expanded_data['wall_type'].str.upper() == wall_type]
+            logger.info(f"Expanded data with rooms_number +/-1: {expanded_data.shape[0]} records found.")
+
+            # Re-run steps 2 and 3 with expanded data
+            analogs = pd.DataFrame()
+
+            # Step 2: Fuzzy match on housing_complex_name if applicable
+            if housing_complex_name and housing_complex_name != "NONE":
+                try:
+                    scores = expanded_data["housing_comlex_name"].fillna("").str.upper().apply(
+                        lambda x: fuzz.token_set_ratio(x, housing_complex_name)
+                    )
+                    expanded_data_with_scores = expanded_data.assign(score=scores)
+                    analogs = expanded_data_with_scores[expanded_data_with_scores['score'] >= threshold]
+                    analogs = analogs.sort_values(by='score', ascending=False)
+                    analogs['source'] = 'complex_name'  # Mark source
+                    logger.info(f"Found {len(analogs)} analogs by housing_complex_name with expanded rooms_number.")
+                except Exception as e:
+                    logger.exception("Error during fuzzy matching of housing_complex_name on expanded data.")
+
+            # Step 3: Geographic proximity with expanded data
+            if len(analogs) < required_analogs:
+                try:
+                    tree = KDTree(np.radians(expanded_data[["latitude", "longitude"]].values))
+                    accumulated_analogs = analogs.copy()
+
+                    for threshold_km in distance_thresholds:
+                        distance_limit_rad = threshold_km / 6371.0088  # Earth's radius in kilometers
+
+                        # Query the tree for points within the distance limit
+                        indices = tree.query_ball_point(entry_coords_rad.reshape(1, -1), distance_limit_rad)
+                        indices = indices[0]  # query_ball_point returns a list of arrays
+
+                        # Filter valid indices
+                        valid_indices = [i for i in indices if i < len(expanded_data)]
+                        new_analogs = expanded_data.iloc[valid_indices]
+                        new_analogs = new_analogs.copy()
+                        new_analogs['source'] = 'proximity'  # Mark source
+
+                        # Combine with accumulated analogs
+                        accumulated_analogs = pd.concat([accumulated_analogs, new_analogs]).drop_duplicates()
+
+                        if len(accumulated_analogs) >= required_analogs:
+                            logger.info(f"Found {len(accumulated_analogs)} analogs within {threshold_km} km with expanded rooms_number.")
+                            break
+                        else:
+                            logger.info(f"Only found {len(accumulated_analogs)} analogs within {threshold_km} km with expanded rooms_number. Expanding search...")
+
+                    if len(accumulated_analogs) < required_analogs:
+                        logger.warning(f"Only found {len(accumulated_analogs)} analogs after applying all distance thresholds on expanded data.")
+
+                    analogs = accumulated_analogs
+
+                except Exception as e:
+                    logger.exception("Error during geographic proximity search on expanded data.")
+
+        except Exception as e:
+            logger.exception("Error expanding rooms_number criteria.")
+
+    # Step 5: Apply IQR outlier drop if a lot of analogs are found
+    if len(analogs) >= 10:
+        try:
+            # Apply IQR outlier removal
+            Q1 = analogs['price_per_square_meter'].quantile(0.25)
+            Q3 = analogs['price_per_square_meter'].quantile(0.75)
+            IQR = Q3 - Q1
+            lower_bound = Q1 - 1.5 * IQR
+            upper_bound = Q3 + 1.5 * IQR
+            initial_count = len(analogs)
+            analogs = analogs[(analogs['price_per_square_meter'] >= lower_bound) & (analogs['price_per_square_meter'] <= upper_bound)]
+            filtered_count = len(analogs)
+            logger.info(f"Applied IQR outlier removal. Reduced analogs from {initial_count} to {filtered_count}.")
+        except Exception as e:
+            logger.exception("Error during IQR outlier removal.")
+
+    # Step 6: Finalize analogs
     if analogs.empty:
         logger.warning("No analogs found for the given entry.")
-        return (np.nan, np.nan, np.nan, 0) + tuple([None] * required_analogs)
+        return (np.nan, np.nan, np.nan, 0) + tuple([None] * 3)
 
     # Ensure 'price_per_square_meter' has valid numeric values
     analogs = analogs.dropna(subset=["price_per_square_meter"])
     if analogs.empty:
         logger.warning("No analogs with valid 'price_per_square_meter' found.")
-        return (np.nan, np.nan, np.nan, 0) + tuple([None] * required_analogs)
+        return (np.nan, np.nan, np.nan, 0) + tuple([None] * 3)
 
     # Compute statistics
     median_price = analogs["price_per_square_meter"].median()
@@ -140,7 +230,7 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
     logger.info(f"Returning statistics and analog links: Median={median_price}, Max={max_price}, "
                 f"Min={min_price}, Count={num_analogs}, Links={analog_links}")
 
-    return (median_price, max_price, min_price, num_analogs) + tuple(analog_links)
+    return (median_price, max_price, min_price, num_analogs) + tuple(analog_links[:3])
 
 
 def get_location(city, district, street, house_number, housing_comlex_name):
@@ -246,6 +336,7 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
     construction_year = entry["building_year"]
     bathroom = entry["flat_toilet"].upper()
     former_hostel = True if entry["flat_priv_dorm"] == "Да" else False
+    condition = entry['flat_renovation']
 
     location = None
     if entry["latitude"] is not None and entry["longitude"] is not None:
@@ -291,6 +382,8 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
         ],
         index=MODEL_COLUMNS,
     )
+    
+    entry['condition'] = condition
 
     logger.info(f"ENTRY: {entry}")
 
