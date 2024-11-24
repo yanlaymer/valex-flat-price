@@ -104,10 +104,13 @@ def main():
             "flat_priv_dorm": 'Нет',
             "flat_renovation": flat_renovation,
             "flat_toilet": flat_toilet,
-            "wall_material": building_type,
-            "building_floors": building_floor,
-            "rooms_number": live_rooms,
-            "construction_year": building_year,
+            "building_type": building_type,
+            "total_floors": building_floor,
+            "rooms": live_rooms,
+            "year_built": building_year,
+            "square": total_square,
+            "floor": flat_floor,
+            "город": city,
         }
         status_placeholder = st.empty()
         status_placeholder.text("Находим признаки... ⏳")

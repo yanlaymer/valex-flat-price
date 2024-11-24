@@ -5,7 +5,6 @@ from loguru import logger
 from src.create_features import get_flat_features
 from src.constants import MODEL_COLUMNS
 
-
 class Predictor:
     def __init__(self, entry: pd.Series):
         self.entry = entry

@@ -347,31 +347,31 @@ def get_flat_features(entry: pd.Series) -> tuple:
     logger.info("FEATURE EXTRACTION")
     logger.info(f"INITIAL ENTRY: {entry}")
     try:
-        city = entry["city"].upper()
-        district = entry["district"].upper()
-        street = entry["street"].upper()
-        house_number = entry["home_number"].upper()
+        city = entry["city"].upper() if entry["city"] else ""
+        district = entry["district"].upper() if entry["district"] else ""
+        street = entry["street"].upper() if entry["street"] else ""
+        house_number = entry["home_number"].upper() if entry["home_number"] else ""
     except AttributeError:
-        city = None
-        district = None
-        street = None
-        house_number = None
+        city = ""
+        district = ""
+        street = ""
+        house_number = ""
 
-    housing_comlex_name = (
+    residential_complex_name = (
         entry["residential_complex"].upper()
         if entry["residential_complex"] is not None
         else ""
     )
     total_square_meters = entry["total_square"]
-    wall_material = (
+    building_type = (
         entry["building_type"].upper()
         if entry["building_type"] != "НЕИЗВЕСТНЫЙ"
         else "ИНОЕ"
     )
     floor = entry["flat_floor"]
-    building_floors = entry["building_floor"]
+    total_floors = entry["building_floor"]
     rooms_number = entry["live_rooms"]
-    construction_year = entry["building_year"]
+    year_built = entry["building_year"]
     bathroom = entry["flat_toilet"].upper()
     former_hostel = True if entry["flat_priv_dorm"] == "Да" else False
 
@@ -384,7 +384,7 @@ def get_flat_features(entry: pd.Series) -> tuple:
         logger.info(f"Location Found: {location.address}")
     else:
         location = get_location(
-            city, district, street, house_number, housing_comlex_name
+            city, district, street, house_number, residential_complex_name
         )
         if location is None:
             logger.error("Could not find location for the flat.")
@@ -394,19 +394,19 @@ def get_flat_features(entry: pd.Series) -> tuple:
     latitude = location.latitude
     longitude = location.longitude
 
-    housing_comlex_name = "НЕТ" if housing_comlex_name == "" else housing_comlex_name
+    residential_complex_name = "НЕТ" if residential_complex_name == "" else residential_complex_name
 
     entry_series = pd.Series(
         [
             latitude,
             longitude,
             floor,
-            building_floors,
+            total_floors,
             rooms_number,
             total_square_meters,
-            construction_year,
-            wall_material,
-            housing_comlex_name,
+            year_built,
+            building_type,
+            residential_complex_name,
             bathroom,
             former_hostel,
             None,  # analog_prices_median placeholder
@@ -414,7 +414,7 @@ def get_flat_features(entry: pd.Series) -> tuple:
             None,  # analog_prices_min placeholder
             city,
         ],
-        index=MODEL_COLUMNS + ['city'],
+        index=MODEL_COLUMNS + ['город'],
     )
 
     logger.info(f"ENTRY: {entry_series}")
