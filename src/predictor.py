@@ -5,6 +5,7 @@ from loguru import logger
 from src.create_features import get_flat_features
 from src.constants import MODEL_COLUMNS
 
+
 class Predictor:
     def __init__(self, entry: pd.Series):
         self.entry = entry
@@ -13,7 +14,7 @@ class Predictor:
         self.final_price = None
 
     def predict_price(self):
-        self.model_entry, feedback_status, feedback = get_flat_features(self.entry)
+        self.model_entry = get_flat_features(self.entry)
 
         prediction = self.model.predict(self.model_entry[MODEL_COLUMNS])
         self.pred_price = prediction
@@ -43,10 +44,11 @@ class Predictor:
         logger.info(f"MIN PRICE: {analog_min_price:,.0f}")
         logger.info(f"MEDIAN PRICE: {analog_median_price:,.0f}")
         logger.info(f"MAX PRICE: {analog_max_price:,.0f}")
-
+        
         address_geocoder = None
         if self.model_entry['address_geocoder']:
             address_geocoder = self.model_entry['address_geocoder']
+            
 
         if corrected_price == 0:
             corrected_price = analog_median_price * self.entry["total_square"]
@@ -71,4 +73,4 @@ class Predictor:
             self.model_entry["analog_3"],
         ]
 
-        return self.final_price, analog_links, address_geocoder, feedback_status, feedback
+        return self.final_price, analog_links, address_geocoder
