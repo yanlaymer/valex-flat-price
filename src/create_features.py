@@ -50,17 +50,6 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
         "floor": False,
         "square": False,
     }
-
-    # Define the filters and their priorities (lower number is higher priority)
-    filters = [
-        {"name": "rooms", "function": filter_by_rooms, "priority": 1},
-        {"name": "building_type", "function": filter_by_building_type, "priority": 2},
-        {"name": "year_built", "function": filter_by_year_built, "priority": 3},
-        {"name": "total_floors", "function": filter_by_total_floors, "priority": 4},
-        {"name": "floor", "function": filter_by_floor, "priority": 5},
-        {"name": "square", "function": filter_by_square, "priority": 6},
-    ]
-
     # Define the filter functions
     def filter_by_rooms(data, entry):
         rooms_number = entry["rooms"]
@@ -108,6 +97,17 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
         valid_indices = [i for i in indices if i < len(data)]
         return data.iloc[valid_indices]
 
+
+    # Define the filters and their priorities (lower number is higher priority)
+    filters = [
+        {"name": "rooms", "function": filter_by_rooms, "priority": 1},
+        {"name": "building_type", "function": filter_by_building_type, "priority": 2},
+        {"name": "year_built", "function": filter_by_year_built, "priority": 3},
+        {"name": "total_floors", "function": filter_by_total_floors, "priority": 4},
+        {"name": "floor", "function": filter_by_floor, "priority": 5},
+        {"name": "square", "function": filter_by_square, "priority": 6},
+    ]
+    
     # Sort filters by priority
     filters = sorted(filters, key=lambda x: x['priority'])
 
