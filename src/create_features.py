@@ -6,24 +6,8 @@ from scipy.spatial import KDTree
 from itertools import combinations
 from src.constants import MODEL_COLUMNS
 from fuzzywuzzy import fuzz
-
 # Load the analogs data
 analogs = pd.read_csv("data/analogs_45K.csv", compression='gzip')
-
-# Calculate 'price_per_square_meter' if not present
-if 'price_per_square_meter' not in analogs.columns:
-    analogs['price_per_square_meter'] = analogs['price'] / analogs['square']
-
-import pandas as pd
-import numpy as np
-from loguru import logger
-from geopy.geocoders import Nominatim, ArcGIS
-from scipy.spatial import KDTree
-from src.constants import MODEL_COLUMNS
-from fuzzywuzzy import fuzz
-
-# Load the analogs data
-analogs = pd.read_csv("data/current_analogs_40K.csv")
 
 # Calculate 'price_per_square_meter' if not present
 if 'price_per_square_meter' not in analogs.columns:
