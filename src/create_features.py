@@ -8,7 +8,7 @@ from src.constants import MODEL_COLUMNS
 from fuzzywuzzy import fuzz
 
 # Load the analogs data
-analogs = pd.read_csv("data/analogs_45K.csv")
+analogs = pd.read_csv("data/analogs_45K.csv", compression='gzip')
 
 # Calculate 'price_per_square_meter' if not present
 if 'price_per_square_meter' not in analogs.columns:
