@@ -7,38 +7,33 @@ from itertools import combinations
 from src.constants import MODEL_COLUMNS
 from fuzzywuzzy import fuzz
 
-analogs = pd.read_csv("data/current_analogs_40K.csv")  # Database of analog properties
+# Load the analogs data
+analogs = pd.read_csv("data/current_analogs_40K.csv")
 
+# Calculate 'price_per_square_meter' if not present
+if 'price_per_square_meter' not in analogs.columns:
+    analogs['price_per_square_meter'] = analogs['price'] / analogs['square']
 
 def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analogs: int = 3) -> tuple:
     """
     Retrieves analog price statistics and links based on the provided entry.
-
-    Parameters:
-    - data (pd.DataFrame): The DataFrame containing analogs with necessary features.
-    - entry (dict): A dictionary containing details of the entry to find analogs for.
-    - required_analogs (int): The number of analog links to return. Default is 3.
-
-    Returns:
-    - tuple: Contains median, max, min price per square meter, number of analogs,
-             feedback status, feedback dictionary, and a list of analog links.
     """
 
-    # Validate required columns in data
+    # Update the required columns to match your data
     required_columns = [
-        "rooms_number", "construction_year", "housing_comlex_name", "latitude", "longitude",
-        "price_per_square_meter", "link", "wall_material", "building_floors",
-        "flat_floor", "total_square", "city"
+        "rooms", "year_built", "residential_complex_name", "latitude", "longitude",
+        "price_per_square_meter", "link", "building_type", "total_floors",
+        "floor", "square", "город"
     ]
     missing_columns = [col for col in required_columns if col not in data.columns]
     if missing_columns:
         logger.error(f"The data is missing required columns: {missing_columns}")
         raise ValueError(f"The data is missing required columns: {missing_columns}")
 
-    # Validate required keys in entry
+    # Update the required keys in entry
     required_keys = [
-        "rooms_number", "construction_year", "housing_comlex_name", "latitude", "longitude",
-        "wall_material", "building_floors", "flat_floor", "total_square", "city"
+        "rooms", "year_built", "residential_complex_name", "latitude", "longitude",
+        "building_type", "total_floors", "floor", "square", "город"
     ]
     missing_keys = [key for key in required_keys if key not in entry]
     if missing_keys:
@@ -47,113 +42,113 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
 
     # Initialize feedback
     feedback = {
-        "rooms_number": False,
-        "construction_year": False,
+        "rooms": False,
+        "year_built": False,
         "location": False,
-        "wall_material": False,
-        "building_floors": False,
-        "flat_floor": False,
-        "total_square": False,
+        "building_type": False,
+        "total_floors": False,
+        "floor": False,
+        "square": False,
     }
 
-    # Step 1: Filter based on exact rooms_number match
+    # Step 1: Filter based on exact rooms match
     try:
-        rooms_number = entry["rooms_number"]
-        filtered_data = data[data["rooms_number"] == rooms_number].copy()
-        logger.info(f"Filtered data based on rooms_number={rooms_number}: {filtered_data.shape[0]} records found.")
+        rooms_number = entry["rooms"]
+        filtered_data = data[data["rooms"] == rooms_number].copy()
+        logger.info(f"Filtered data based on rooms={rooms_number}: {filtered_data.shape[0]} records found.")
         if not filtered_data.empty:
-            feedback["rooms_number"] = True
+            feedback["rooms"] = True
     except Exception as e:
-        logger.exception("Error filtering data based on rooms_number.")
+        logger.exception("Error filtering data based on rooms.")
         raise e
 
-    # Step 2: Filter based on wall_material
+    # Step 2: Filter based on building_type (wall_material)
     try:
-        wall_material = entry["wall_material"]
-        filtered_data = filtered_data[filtered_data["wall_material"] == wall_material]
-        logger.info(f"Filtered data based on wall_material={wall_material}: {filtered_data.shape[0]} records found.")
+        building_type = entry["building_type"]
+        filtered_data = filtered_data[filtered_data["building_type"] == building_type]
+        logger.info(f"Filtered data based on building_type={building_type}: {filtered_data.shape[0]} records found.")
         if not filtered_data.empty:
-            feedback["wall_material"] = True
+            feedback["building_type"] = True
     except Exception as e:
-        logger.exception("Error filtering data based on wall_material.")
+        logger.exception("Error filtering data based on building_type.")
         raise e
 
-    # Step 3: Filter based on construction year within ±5 years
+    # Step 3: Filter based on year_built within ±5 years
     try:
-        construction_year = entry["construction_year"]
-        year_min = construction_year - 5
-        year_max = construction_year + 5
+        year_built = entry["year_built"]
+        year_min = year_built - 5
+        year_max = year_built + 5
         filtered_data = filtered_data[
-            (filtered_data["construction_year"] >= year_min) &
-            (filtered_data["construction_year"] <= year_max)
+            (filtered_data["year_built"] >= year_min) &
+            (filtered_data["year_built"] <= year_max)
         ]
-        logger.info(f"Filtered data based on construction_year between {year_min}-{year_max}: {filtered_data.shape[0]} records found.")
+        logger.info(f"Filtered data based on year_built between {year_min}-{year_max}: {filtered_data.shape[0]} records found.")
         if not filtered_data.empty:
-            feedback["construction_year"] = True
+            feedback["year_built"] = True
     except Exception as e:
-        logger.exception("Error filtering data based on construction_year.")
+        logger.exception("Error filtering data based on year_built.")
         raise e
 
-    # Step 4: Filter based on building_floors
+    # Step 4: Filter based on total_floors
     try:
-        building_floors = entry["building_floors"]
-        filtered_data = filtered_data[filtered_data["building_floors"] == building_floors]
-        logger.info(f"Filtered data based on building_floors={building_floors}: {filtered_data.shape[0]} records found.")
+        total_floors = entry["total_floors"]
+        filtered_data = filtered_data[filtered_data["total_floors"] == total_floors]
+        logger.info(f"Filtered data based on total_floors={total_floors}: {filtered_data.shape[0]} records found.")
         if not filtered_data.empty:
-            feedback["building_floors"] = True
+            feedback["total_floors"] = True
         else:
             # Relax criterion if building height exceeds 9 floors
-            if building_floors > 9:
-                filtered_data = data[data["building_floors"] > 9]
-                logger.info(f"Relaxed building_floors criterion for buildings over 9 floors: {filtered_data.shape[0]} records found.")
+            if total_floors > 9:
+                filtered_data = data[data["total_floors"] > 9]
+                logger.info(f"Relaxed total_floors criterion for buildings over 9 floors: {filtered_data.shape[0]} records found.")
     except Exception as e:
-        logger.exception("Error filtering data based on building_floors.")
+        logger.exception("Error filtering data based on total_floors.")
         raise e
 
-    # Step 5: Filter based on flat_floor
+    # Step 5: Filter based on floor
     try:
-        flat_floor = entry["flat_floor"]
-        building_floors = entry["building_floors"]
-        if flat_floor == 1 or flat_floor == building_floors:
+        flat_floor = entry["floor"]
+        total_floors = entry["total_floors"]
+        if flat_floor == 1 or flat_floor == total_floors:
             # First or last floor
             filtered_data = filtered_data[
-                (filtered_data["flat_floor"] == 1) |
-                (filtered_data["flat_floor"] == filtered_data["building_floors"])
+                (filtered_data["floor"] == 1) |
+                (filtered_data["floor"] == filtered_data["total_floors"])
             ]
         else:
             # Middle floors
             filtered_data = filtered_data[
-                (filtered_data["flat_floor"] != 1) &
-                (filtered_data["flat_floor"] != filtered_data["building_floors"])
+                (filtered_data["floor"] != 1) &
+                (filtered_data["floor"] != filtered_data["total_floors"])
             ]
-        logger.info(f"Filtered data based on flat_floor: {filtered_data.shape[0]} records found.")
+        logger.info(f"Filtered data based on floor: {filtered_data.shape[0]} records found.")
         if not filtered_data.empty:
-            feedback["flat_floor"] = True
+            feedback["floor"] = True
     except Exception as e:
-        logger.exception("Error filtering data based on flat_floor.")
+        logger.exception("Error filtering data based on floor.")
         raise e
 
-    # Step 6: Filter based on total_square (area within 15%–20%)
+    # Step 6: Filter based on square (area within 15%–20%)
     try:
-        total_square = entry["total_square"]
+        total_square = entry["square"]
         area_min = total_square * 0.8  # 20% less
         area_max = total_square * 1.15  # 15% more
         filtered_data = filtered_data[
-            (filtered_data["total_square"] >= area_min) &
-            (filtered_data["total_square"] <= area_max)
+            (filtered_data["square"] >= area_min) &
+            (filtered_data["square"] <= area_max)
         ]
-        logger.info(f"Filtered data based on total_square between {area_min}-{area_max}: {filtered_data.shape[0]} records found.")
+        logger.info(f"Filtered data based on square between {area_min}-{area_max}: {filtered_data.shape[0]} records found.")
         if not filtered_data.empty:
-            feedback["total_square"] = True
+            feedback["square"] = True
     except Exception as e:
-        logger.exception("Error filtering data based on total_square.")
+        logger.exception("Error filtering data based on square.")
         raise e
 
     # Step 7: Filter based on location
     try:
-        city = entry["city"].upper()
+        city = entry["город"].upper()
         entry_coords_rad = np.radians([entry["latitude"], entry["longitude"]])
-        if city in ["ALMATY", "SHYMKENT", "ASTANA"]:
+        if city in ["АЛМАТЫ", "ШЫМКЕНТ", "АСТАНА"]:
             distance_thresholds = [2, 3, 5, 10]  # Start with 2 km
         else:
             distance_thresholds = [5, 10, 15, 20]  # Start with 5 km
@@ -191,21 +186,21 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
         logger.exception("Error during geographic proximity search.")
         raise e
 
-    # Step 8: Fuzzy match on housing_complex_name if applicable
+    # Step 8: Fuzzy match on residential_complex_name if applicable
     try:
-        housing_complex_name = entry.get("housing_comlex_name", "").strip().upper()
-        if housing_complex_name and housing_complex_name != "НЕТ":
+        residential_complex_name = entry.get("residential_complex_name", "").strip().upper()
+        if residential_complex_name and residential_complex_name != "НЕТ":
             threshold = 85  # Define fuzzy matching threshold
-            scores = analogs["housing_comlex_name"].fillna("").str.upper().apply(
-                lambda x: fuzz.token_set_ratio(x, housing_complex_name)
+            scores = analogs["residential_complex_name"].fillna("").str.upper().apply(
+                lambda x: fuzz.token_set_ratio(x, residential_complex_name)
             )
             analogs = analogs.assign(score=scores)
             analogs = analogs[analogs['score'] >= threshold]
             analogs = analogs.sort_values(by='score', ascending=False)
             analogs['source'] = 'complex_name'  # Mark source
-            logger.info(f"Found {len(analogs)} analogs by housing_complex_name with name '{housing_complex_name}'.")
+            logger.info(f"Found {len(analogs)} analogs by residential_complex_name with name '{residential_complex_name}'.")
     except Exception as e:
-        logger.exception("Error during fuzzy matching of housing_comlex_name.")
+        logger.exception("Error during fuzzy matching of residential_complex_name.")
 
     # Ensure at least 10 analogs
     if len(analogs) < 10:
@@ -213,14 +208,14 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
 
         # Fallback logic: progressively relax filters
         # Example: Relax area filtering
-        if not feedback["total_square"]:
+        if not feedback["square"]:
             area_min = total_square * 0.7  # 30% less
             area_max = total_square * 1.3  # 30% more
             filtered_data = data[
-                (data["total_square"] >= area_min) &
-                (data["total_square"] <= area_max)
+                (data["square"] >= area_min) &
+                (data["square"] <= area_max)
             ]
-            feedback["total_square"] = False  # Parameter was relaxed
+            feedback["square"] = False  # Parameter was relaxed
             logger.info(f"Relaxed area filtering to {area_min}-{area_max}. Records found: {filtered_data.shape[0]}")
 
         # Re-apply location filtering with relaxed area
