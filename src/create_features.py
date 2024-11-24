@@ -1,13 +1,13 @@
 import pandas as pd
 import numpy as np
 from loguru import logger
-from geopy.geocoders import Nominatim, ArcGIS, GoogleV3
+from geopy.geocoders import Nominatim, ArcGIS
 from scipy.spatial import KDTree
 from itertools import combinations
 from src.constants import MODEL_COLUMNS
 from fuzzywuzzy import fuzz
 
-analogs = pd.read_csv("data/current_analogs_40K.csv") # db in rl
+analogs = pd.read_csv("data/current_analogs_40K.csv")  # Database of analog properties
 
 
 def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analogs: int = 3) -> tuple:
@@ -20,105 +20,224 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
     - required_analogs (int): The number of analog links to return. Default is 3.
 
     Returns:
-    - tuple: A tuple containing median, max, min price per square meter, number of analogs,
-             and a list of analog links (with length equal to required_analogs).
+    - tuple: Contains median, max, min price per square meter, number of analogs,
+             feedback status, feedback dictionary, and a list of analog links.
     """
+
     # Validate required columns in data
-    required_columns = ["rooms_number", "construction_year", "housing_comlex_name", "latitude", "longitude",
-                        "price_per_square_meter", "link"]
+    required_columns = [
+        "rooms_number", "construction_year", "housing_comlex_name", "latitude", "longitude",
+        "price_per_square_meter", "link", "wall_material", "building_floors",
+        "flat_floor", "total_square", "city"
+    ]
     missing_columns = [col for col in required_columns if col not in data.columns]
     if missing_columns:
         logger.error(f"The data is missing required columns: {missing_columns}")
         raise ValueError(f"The data is missing required columns: {missing_columns}")
 
     # Validate required keys in entry
-    required_keys = ["rooms_number", "construction_year", "housing_comlex_name", "latitude", "longitude"]
+    required_keys = [
+        "rooms_number", "construction_year", "housing_comlex_name", "latitude", "longitude",
+        "wall_material", "building_floors", "flat_floor", "total_square", "city"
+    ]
     missing_keys = [key for key in required_keys if key not in entry]
     if missing_keys:
         logger.error(f"The entry is missing required keys: {missing_keys}")
         raise KeyError(f"The entry is missing required keys: {missing_keys}")
 
-    # Step 1: Filter based on rooms_number (including same, +1, and -1)
+    # Initialize feedback
+    feedback = {
+        "rooms_number": False,
+        "construction_year": False,
+        "location": False,
+        "wall_material": False,
+        "building_floors": False,
+        "flat_floor": False,
+        "total_square": False,
+    }
+
+    # Step 1: Filter based on exact rooms_number match
     try:
         rooms_number = entry["rooms_number"]
-        mask_same_room = data["rooms_number"] == rooms_number
-        mask_room_lower = data["rooms_number"] == rooms_number - 1
-        mask_room_upper = data["rooms_number"] == rooms_number + 1
-        filtered_data = data[mask_same_room | mask_room_lower | mask_room_upper].copy()
+        filtered_data = data[data["rooms_number"] == rooms_number].copy()
         logger.info(f"Filtered data based on rooms_number={rooms_number}: {filtered_data.shape[0]} records found.")
+        if not filtered_data.empty:
+            feedback["rooms_number"] = True
     except Exception as e:
         logger.exception("Error filtering data based on rooms_number.")
         raise e
 
-    # Step 2: Fuzzy match on housing_complex_name if applicable
-    analogs = pd.DataFrame()
-    housing_complex_name = entry.get("housing_comlex_name", "").strip().upper()
+    # Step 2: Filter based on wall_material
+    try:
+        wall_material = entry["wall_material"]
+        filtered_data = filtered_data[filtered_data["wall_material"] == wall_material]
+        logger.info(f"Filtered data based on wall_material={wall_material}: {filtered_data.shape[0]} records found.")
+        if not filtered_data.empty:
+            feedback["wall_material"] = True
+    except Exception as e:
+        logger.exception("Error filtering data based on wall_material.")
+        raise e
 
-    if housing_complex_name and housing_complex_name != "NONE":
-        try:
+    # Step 3: Filter based on construction year within ±5 years
+    try:
+        construction_year = entry["construction_year"]
+        year_min = construction_year - 5
+        year_max = construction_year + 5
+        filtered_data = filtered_data[
+            (filtered_data["construction_year"] >= year_min) &
+            (filtered_data["construction_year"] <= year_max)
+        ]
+        logger.info(f"Filtered data based on construction_year between {year_min}-{year_max}: {filtered_data.shape[0]} records found.")
+        if not filtered_data.empty:
+            feedback["construction_year"] = True
+    except Exception as e:
+        logger.exception("Error filtering data based on construction_year.")
+        raise e
+
+    # Step 4: Filter based on building_floors
+    try:
+        building_floors = entry["building_floors"]
+        filtered_data = filtered_data[filtered_data["building_floors"] == building_floors]
+        logger.info(f"Filtered data based on building_floors={building_floors}: {filtered_data.shape[0]} records found.")
+        if not filtered_data.empty:
+            feedback["building_floors"] = True
+        else:
+            # Relax criterion if building height exceeds 9 floors
+            if building_floors > 9:
+                filtered_data = data[data["building_floors"] > 9]
+                logger.info(f"Relaxed building_floors criterion for buildings over 9 floors: {filtered_data.shape[0]} records found.")
+    except Exception as e:
+        logger.exception("Error filtering data based on building_floors.")
+        raise e
+
+    # Step 5: Filter based on flat_floor
+    try:
+        flat_floor = entry["flat_floor"]
+        building_floors = entry["building_floors"]
+        if flat_floor == 1 or flat_floor == building_floors:
+            # First or last floor
+            filtered_data = filtered_data[
+                (filtered_data["flat_floor"] == 1) |
+                (filtered_data["flat_floor"] == filtered_data["building_floors"])
+            ]
+        else:
+            # Middle floors
+            filtered_data = filtered_data[
+                (filtered_data["flat_floor"] != 1) &
+                (filtered_data["flat_floor"] != filtered_data["building_floors"])
+            ]
+        logger.info(f"Filtered data based on flat_floor: {filtered_data.shape[0]} records found.")
+        if not filtered_data.empty:
+            feedback["flat_floor"] = True
+    except Exception as e:
+        logger.exception("Error filtering data based on flat_floor.")
+        raise e
+
+    # Step 6: Filter based on total_square (area within 15%–20%)
+    try:
+        total_square = entry["total_square"]
+        area_min = total_square * 0.8  # 20% less
+        area_max = total_square * 1.15  # 15% more
+        filtered_data = filtered_data[
+            (filtered_data["total_square"] >= area_min) &
+            (filtered_data["total_square"] <= area_max)
+        ]
+        logger.info(f"Filtered data based on total_square between {area_min}-{area_max}: {filtered_data.shape[0]} records found.")
+        if not filtered_data.empty:
+            feedback["total_square"] = True
+    except Exception as e:
+        logger.exception("Error filtering data based on total_square.")
+        raise e
+
+    # Step 7: Filter based on location
+    try:
+        city = entry["city"].upper()
+        entry_coords_rad = np.radians([entry["latitude"], entry["longitude"]])
+        if city in ["ALMATY", "SHYMKENT", "ASTANA"]:
+            distance_thresholds = [2, 3, 5, 10]  # Start with 2 km
+        else:
+            distance_thresholds = [5, 10, 15, 20]  # Start with 5 km
+
+        # Build KDTree
+        tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
+
+        analogs = pd.DataFrame()
+
+        for threshold_km in distance_thresholds:
+            distance_limit_rad = threshold_km / 6371.0088  # Earth's radius in kilometers
+            # Query the tree for points within the distance limit
+            indices = tree.query_ball_point(entry_coords_rad.reshape(1, -1), distance_limit_rad)
+            indices = indices[0]  # query_ball_point returns a list of arrays
+
+            # Filter valid indices
+            valid_indices = [i for i in indices if i < len(filtered_data)]
+            new_analogs = filtered_data.iloc[valid_indices]
+            new_analogs = new_analogs.copy()
+            new_analogs['source'] = 'proximity'  # Mark source
+
+            # Combine with accumulated analogs
+            analogs = pd.concat([analogs, new_analogs]).drop_duplicates()
+
+            if len(analogs) >= 10:
+                logger.info(f"Found {len(analogs)} analogs within {threshold_km} km.")
+                feedback["location"] = True
+                break
+            else:
+                logger.info(f"Only found {len(analogs)} analogs within {threshold_km} km. Expanding search...")
+
+        if analogs.empty:
+            logger.warning("No analogs found based on location.")
+    except Exception as e:
+        logger.exception("Error during geographic proximity search.")
+        raise e
+
+    # Step 8: Fuzzy match on housing_complex_name if applicable
+    try:
+        housing_complex_name = entry.get("housing_comlex_name", "").strip().upper()
+        if housing_complex_name and housing_complex_name != "НЕТ":
             threshold = 85  # Define fuzzy matching threshold
-            scores = filtered_data["housing_comlex_name"].fillna("").str.upper().apply(
+            scores = analogs["housing_comlex_name"].fillna("").str.upper().apply(
                 lambda x: fuzz.token_set_ratio(x, housing_complex_name)
             )
-            filtered_data_with_scores = filtered_data.assign(score=scores)
-            analogs = filtered_data_with_scores[filtered_data_with_scores['score'] >= threshold]
+            analogs = analogs.assign(score=scores)
+            analogs = analogs[analogs['score'] >= threshold]
             analogs = analogs.sort_values(by='score', ascending=False)
             analogs['source'] = 'complex_name'  # Mark source
             logger.info(f"Found {len(analogs)} analogs by housing_complex_name with name '{housing_complex_name}'.")
-        except Exception as e:
-            logger.exception("Error during fuzzy matching of housing_complex_name.")
+    except Exception as e:
+        logger.exception("Error during fuzzy matching of housing_comlex_name.")
 
-    # Step 3: If not enough analogs found, use geographic proximity
-    if len(analogs) < required_analogs:
-        try:
-            # Define distance thresholds in kilometers
-            distance_thresholds = [1, 3, 5, 10, 15, 20, 50]  # Adjust as needed
-            entry_coords_rad = np.radians([entry["latitude"], entry["longitude"]])
-            tree = KDTree(np.radians(filtered_data[["latitude", "longitude"]].values))
+    # Ensure at least 10 analogs
+    if len(analogs) < 10:
+        logger.warning(f"Only found {len(analogs)} analogs after applying all filters. Applying fallback logic.")
 
-            # Initialize an empty DataFrame to accumulate analogs
-            accumulated_analogs = analogs.copy()
+        # Fallback logic: progressively relax filters
+        # Example: Relax area filtering
+        if not feedback["total_square"]:
+            area_min = total_square * 0.7  # 30% less
+            area_max = total_square * 1.3  # 30% more
+            filtered_data = data[
+                (data["total_square"] >= area_min) &
+                (data["total_square"] <= area_max)
+            ]
+            feedback["total_square"] = False  # Parameter was relaxed
+            logger.info(f"Relaxed area filtering to {area_min}-{area_max}. Records found: {filtered_data.shape[0]}")
 
-            for threshold_km in distance_thresholds:
-                distance_limit_rad = threshold_km / 6371.0088  # Earth's radius in kilometers
+        # Re-apply location filtering with relaxed area
+        # Additional fallback logic can be implemented as needed
 
-                # Query the tree for points within the distance limit
-                indices = tree.query_ball_point(entry_coords_rad.reshape(1, -1), distance_limit_rad)
-                indices = indices[0]  # query_ball_point returns a list of arrays
-
-                # Filter valid indices
-                valid_indices = [i for i in indices if i < len(filtered_data)]
-                new_analogs = filtered_data.iloc[valid_indices]
-                new_analogs = new_analogs.copy()
-                new_analogs['source'] = 'proximity'  # Mark source
-
-                # Combine with accumulated analogs
-                accumulated_analogs = pd.concat([accumulated_analogs, new_analogs]).drop_duplicates()
-
-                if len(accumulated_analogs) >= required_analogs:
-                    logger.info(f"Found {len(accumulated_analogs)} analogs within {threshold_km} km.")
-                    break
-                else:
-                    logger.info(f"Only found {len(accumulated_analogs)} analogs within {threshold_km} km. Expanding search...")
-
-            if len(accumulated_analogs) < required_analogs:
-                logger.warning(f"Only found {len(accumulated_analogs)} analogs after applying all distance thresholds.")
-
-            analogs = accumulated_analogs
-
-        except Exception as e:
-            logger.exception("Error during geographic proximity search.")
-
-    # Step 4: Finalize analogs
+    # Step 9: Finalize analogs
     if analogs.empty:
-        logger.warning("No analogs found for the given entry.")
-        return (np.nan, np.nan, np.nan, 0) + tuple([None] * required_analogs)
+        logger.warning("No analogs found for the given entry after fallback.")
+        feedback_status = "RED"
+        return (np.nan, np.nan, np.nan, 0, feedback_status, feedback) + tuple([None] * required_analogs)
 
     # Ensure 'price_per_square_meter' has valid numeric values
     analogs = analogs.dropna(subset=["price_per_square_meter"])
     if analogs.empty:
         logger.warning("No analogs with valid 'price_per_square_meter' found.")
-        return (np.nan, np.nan, np.nan, 0) + tuple([None] * required_analogs)
+        feedback_status = "RED"
+        return (np.nan, np.nan, np.nan, 0, feedback_status, feedback) + tuple([None] * required_analogs)
 
     # Compute statistics
     median_price = analogs["price_per_square_meter"].median()
@@ -126,21 +245,35 @@ def get_analog_prices_for_entry(data: pd.DataFrame, entry: dict, required_analog
     min_price = analogs["price_per_square_meter"].min()
     num_analogs = len(analogs)
 
-    # Sort analogs so that those from complex name matching come first
-    analogs['source'] = analogs['source'].fillna('proximity')  # Fill missing sources with 'proximity'
-    analogs['source_order'] = analogs['source'].map({'complex_name': 0, 'proximity': 1})
-    analogs = analogs.sort_values(by=['source_order', 'score'], ascending=[True, False])
+    # Sort analogs by price
+    analogs = analogs.sort_values(by="price_per_square_meter")
 
-    # Extract analog links, ensuring there are enough links
-    links = analogs["link"].dropna().unique().tolist()
-    analog_links = links[:required_analogs]
+    # Remove the 3 lowest-priced properties
+    if len(analogs) >= 6:
+        analogs = analogs.iloc[3:]
+    else:
+        logger.warning("Not enough analogs to remove the 3 lowest-priced properties.")
+
+    # Select the 4th, 5th, and 6th properties
+    selected_analogs = analogs.iloc[0:3]
+
+    # Extract their links
+    analog_links = selected_analogs["link"].tolist()
     while len(analog_links) < required_analogs:
         analog_links.append(None)  # Fill with None if not enough links
 
-    logger.info(f"Returning statistics and analog links: Median={median_price}, Max={max_price}, "
-                f"Min={min_price}, Count={num_analogs}, Links={analog_links}")
+    # Determine feedback status
+    if all(feedback.values()):
+        feedback_status = "GREEN"
+    elif any(feedback.values()):
+        feedback_status = "ORANGE"
+    else:
+        feedback_status = "RED"
 
-    return (median_price, max_price, min_price, num_analogs) + tuple(analog_links)
+    logger.info(f"Returning statistics and analog links: Median={median_price}, Max={max_price}, "
+                f"Min={min_price}, Count={num_analogs}, Feedback Status={feedback_status}, Links={analog_links}")
+
+    return (median_price, max_price, min_price, num_analogs, feedback_status, feedback) + tuple(analog_links)
 
 
 def get_location(city, district, street, house_number, housing_comlex_name):
@@ -212,9 +345,9 @@ def get_location(city, district, street, house_number, housing_comlex_name):
 
     return None
 
-def get_flat_features(entry: pd.Series) -> pd.Series:
+def get_flat_features(entry: pd.Series) -> tuple:
     """
-    Returns a Series with the features of the flat.
+    Returns a Series with the features of the flat, feedback status, and feedback dictionary.
     """
     logger.info("FEATURE EXTRACTION")
     logger.info(f"INITIAL ENTRY: {entry}")
@@ -235,13 +368,13 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
         else ""
     )
     total_square_meters = entry["total_square"]
-    wall_type = (
+    wall_material = (
         entry["building_type"].upper()
         if entry["building_type"] != "НЕИЗВЕСТНЫЙ"
         else "ИНОЕ"
     )
     floor = entry["flat_floor"]
-    floors_number = entry["building_floor"]
+    building_floors = entry["building_floor"]
     rooms_number = entry["live_rooms"]
     construction_year = entry["building_year"]
     bathroom = entry["flat_toilet"].upper()
@@ -252,7 +385,6 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
         latitude = entry["latitude"]
         longitude = entry["longitude"]
         logger.info(f"Latitude and Longitude provided: {latitude}, {longitude}")
-        # address
         location = Nominatim(user_agent="my_app").reverse(f"{latitude}, {longitude}")
         logger.info(f"Location Found: {location.address}")
     else:
@@ -261,65 +393,57 @@ def get_flat_features(entry: pd.Series) -> pd.Series:
         )
         if location is None:
             logger.error("Could not find location for the flat.")
-            return None
+            return None, "RED", {}
         logger.info(f"Location Found: {location.address}")
 
     latitude = location.latitude
     longitude = location.longitude
-    analog_prices_median = None
-    analog_prices_max = None
-    analog_price_min = None
-    
+
     housing_comlex_name = "НЕТ" if housing_comlex_name == "" else housing_comlex_name
 
-    entry = pd.Series(
+    entry_series = pd.Series(
         [
             latitude,
             longitude,
             floor,
-            floors_number,
+            building_floors,
             rooms_number,
             total_square_meters,
             construction_year,
-            wall_type,
+            wall_material,
             housing_comlex_name,
             bathroom,
             former_hostel,
-            analog_prices_median,
-            analog_prices_max,
-            analog_price_min,
+            None,  # analog_prices_median placeholder
+            None,  # analog_prices_max placeholder
+            None,  # analog_prices_min placeholder
+            city,
         ],
-        index=MODEL_COLUMNS,
+        index=MODEL_COLUMNS + ['city'],
     )
 
-    logger.info(f"ENTRY: {entry}")
+    logger.info(f"ENTRY: {entry_series}")
 
     logger.info("SEARCHING ANALOGS")
-    (
-        analog_prices_median,
-        analog_prices_max,
-        analog_prices_min,
-        analogs_number,
-        analog_link_1,
-        analog_link_2,
-        analog_link_3,
-    ) = get_analog_prices_for_entry(analogs, entry)
+    analogs_data = get_analog_prices_for_entry(analogs, entry_series)
 
     (
-        entry["analog_prices_median"],
-        entry["analog_prices_max"],
-        entry["analog_prices_min"],
-        entry["analogs_found"],
-        entry["analog_1"],
-        entry["analog_2"],
-        entry["analog_3"],
-    ) = get_analog_prices_for_entry(analogs, entry)
-    
+        entry_series["analog_prices_median"],
+        entry_series["analog_prices_max"],
+        entry_series["analog_prices_min"],
+        entry_series["analogs_found"],
+        feedback_status,
+        feedback,
+        entry_series["analog_1"],
+        entry_series["analog_2"],
+        entry_series["analog_3"],
+    ) = analogs_data
+
     if location:
-        entry['address_geocoder'] = location.address
+        entry_series['address_geocoder'] = location.address
     else:
-        entry['address_geocoder'] = "Не найдено"
+        entry_series['address_geocoder'] = "Не найдено"
 
-    logger.info(f"ENTRY AFTER ANALOGS: {entry}")
+    logger.info(f"ENTRY AFTER ANALOGS: {entry_series}")
 
-    return entry
+    return entry_series, feedback_status, feedback
